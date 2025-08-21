@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Text, View, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useSettings } from '../hooks/useSettings';
@@ -12,14 +12,19 @@ export default function SettingsScreen() {
   const { settings, loading, updateSettings } = useSettings();
   const { colors, styles } = useTheme();
   const [clearingCache, setClearingCache] = useState(false);
+  const [cacheInfo, setCacheInfo] = useState<{ fileCount: number; totalSize: number } | null>(null);
 
-  if (loading || !settings) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={styles.text}>Loading settings...</Text>
-      </View>
-    );
-  }
+  useEffect(() => {
+    const loadCacheInfo = async () => {
+      try {
+        const info = await scryfallService.getCacheSize();
+        setCacheInfo(info);
+      } catch (error) {
+        console.log('Error loading cache info:', error);
+      }
+    };
+    loadCacheInfo();
+  }, [clearingCache]);
 
   const handleLanguageChange = async (languageCode: 'en' | 'de' | 'fr' | 'it' | 'es') => {
     console.log('Changing language to:', languageCode);
@@ -86,19 +91,13 @@ export default function SettingsScreen() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const [cacheInfo, setCacheInfo] = useState<{ fileCount: number; totalSize: number } | null>(null);
-
-  React.useEffect(() => {
-    const loadCacheInfo = async () => {
-      try {
-        const info = await scryfallService.getCacheSize();
-        setCacheInfo(info);
-      } catch (error) {
-        console.log('Error loading cache info:', error);
-      }
-    };
-    loadCacheInfo();
-  }, [clearingCache]);
+  if (loading || !settings) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.text}>Loading settings...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

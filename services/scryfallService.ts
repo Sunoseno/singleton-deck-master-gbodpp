@@ -5,7 +5,7 @@ import { ScryfallCard } from '../types/deck';
 
 class ScryfallService {
   private static instance: ScryfallService;
-  private requestQueue: Array<() => Promise<void>> = [];
+  private requestQueue: (() => Promise<void>)[] = [];
   private isProcessing = false;
   private lastRequestTime = 0;
   private readonly RATE_LIMIT_DELAY = 100; // 100ms between requests as per Scryfall guidelines
@@ -227,7 +227,7 @@ class ScryfallService {
     }
   }
 
-  public calculateDeckColorIdentity(commanderCards: Array<{ colorIdentity?: string[] }>): string[] {
+  public calculateDeckColorIdentity(commanderCards: { colorIdentity?: string[] }[]): string[] {
     const allColors = new Set<string>();
     
     commanderCards.forEach(card => {
