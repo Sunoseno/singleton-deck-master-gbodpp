@@ -5,7 +5,7 @@ import { ScryfallCard } from '../types/deck';
 
 class ScryfallService {
   private static instance: ScryfallService;
-  private requestQueue: (() => Promise<void>)[] = [];
+  private requestQueue: Array<() => Promise<void>> = [];
   private isProcessing = false;
   private lastRequestTime = 0;
   private readonly RATE_LIMIT_DELAY = 100; // 100ms between requests as per Scryfall guidelines
@@ -156,7 +156,7 @@ class ScryfallService {
       }
 
       let imagePath: string | null = null;
-      // Use higher resolution 'normal' instead of 'small'
+      // FIXED: Use higher resolution 'normal' instead of 'small'
       if (card.image_uris?.normal) {
         imagePath = await this.downloadAndCacheImage(card.image_uris.normal, cardName);
       }
@@ -168,54 +168,7 @@ class ScryfallService {
     }
   }
 
-  public async clearImageCache(): Promise<void> {
-    try {
-      console.log('Clearing Scryfall image cache...');
-      const dirInfo = await FileSystem.getInfoAsync(this.CACHE_DIR);
-      
-      if (dirInfo.exists) {
-        await FileSystem.deleteAsync(this.CACHE_DIR);
-        console.log('Cache directory deleted');
-        
-        // Recreate the cache directory
-        await this.ensureCacheDirectory();
-        console.log('Cache directory recreated');
-      } else {
-        console.log('Cache directory does not exist');
-      }
-    } catch (error) {
-      console.log('Error clearing image cache:', error);
-      throw error;
-    }
-  }
-
-  public async getCacheSize(): Promise<{ fileCount: number; totalSize: number }> {
-    try {
-      const dirInfo = await FileSystem.getInfoAsync(this.CACHE_DIR);
-      
-      if (!dirInfo.exists) {
-        return { fileCount: 0, totalSize: 0 };
-      }
-
-      const files = await FileSystem.readDirectoryAsync(this.CACHE_DIR);
-      let totalSize = 0;
-      
-      for (const file of files) {
-        const filePath = `${this.CACHE_DIR}${file}`;
-        const fileInfo = await FileSystem.getInfoAsync(filePath);
-        if (fileInfo.exists && fileInfo.size) {
-          totalSize += fileInfo.size;
-        }
-      }
-
-      return { fileCount: files.length, totalSize };
-    } catch (error) {
-      console.log('Error getting cache size:', error);
-      return { fileCount: 0, totalSize: 0 };
-    }
-  }
-
-  public calculateDeckColorIdentity(commanderCards: { colorIdentity?: string[] }[]): string[] {
+  public calculateDeckColorIdentity(commanderCards: Array<{ colorIdentity?: string[] }>): string[] {
     const allColors = new Set<string>();
     
     commanderCards.forEach(card => {
@@ -225,27 +178,6 @@ class ScryfallService {
     });
     
     return Array.from(allColors).sort();
-  }
-
-  public getColorGradient(colorIdentity: string[]): string[] {
-    const colorMap: { [key: string]: string } = {
-      'W': '#FFFBD5', // White
-      'U': '#0E68AB', // Blue
-      'B': '#150B00', // Black
-      'R': '#D3202A', // Red
-      'G': '#00733E', // Green
-    };
-
-    if (!colorIdentity || colorIdentity.length === 0) {
-      return ['#8B8B8B']; // Colorless - gray
-    }
-
-    if (colorIdentity.length === 1) {
-      return [colorMap[colorIdentity[0]] || '#8B8B8B'];
-    }
-
-    // For multiple colors, return all colors for gradient
-    return colorIdentity.map(color => colorMap[color] || '#8B8B8B');
   }
 }
 

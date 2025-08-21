@@ -3,21 +3,16 @@ import { Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { useDecks } from '../../hooks/useDecks';
-import { useSettings } from '../../hooks/useSettings';
-import { useTheme } from '../../hooks/useTheme';
-import { useTranslations } from '../../utils/localization';
+import { commonStyles, colors } from '../../styles/commonStyles';
 import { Card, CardConflict } from '../../types/deck';
 import Icon from '../../components/Icon';
 import ExpandableSection from '../../components/ExpandableSection';
 import CardImageModal from '../../components/CardImageModal';
-import { LinearGradient } from 'expo-linear-gradient';
-import { scryfallService } from '../../services/scryfallService';
+import ColorIdentityDisplay from '../../components/ColorIdentityDisplay';
 
 export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { decks, deleteDeck, setActiveDeck, getCardConflicts, getConflictsByDeck, updateDeck, enrichCardWithScryfall, getCardDeckInfo } = useDecks();
-  const { settings } = useSettings();
-  const { colors, styles } = useTheme();
   const [conflicts, setConflicts] = useState<CardConflict[]>([]);
   const [conflictsByDeck, setConflictsByDeck] = useState<{ [deckName: string]: CardConflict[] }>({});
   const [selectedCardImage, setSelectedCardImage] = useState<{
@@ -30,7 +25,6 @@ export default function DeckDetailScreen() {
     deckInfo: { currentDeck: string | null; otherDecks: string[] };
   } | null>(null);
 
-  const t = useTranslations(settings?.language || 'en');
   const deck = decks.find(d => d.id === id);
 
   useEffect(() => {
@@ -58,16 +52,16 @@ export default function DeckDetailScreen() {
     console.log('Showing delete confirmation alert');
     
     Alert.alert(
-      t.deleteDeck,
-      t.confirmDelete,
+      'Delete Deck',
+      `Are you sure you want to delete "${deck.name}"? This action cannot be undone.`,
       [
         { 
-          text: t.cancel, 
+          text: 'Cancel', 
           style: 'cancel',
           onPress: () => console.log('Delete cancelled')
         },
         {
-          text: t.delete,
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             console.log('Delete confirmed, proceeding with deletion');
@@ -77,7 +71,7 @@ export default function DeckDetailScreen() {
               router.replace('/');
             } catch (error) {
               console.log('Error deleting deck:', error);
-              Alert.alert(t.error, t.deleteError);
+              Alert.alert('Error', 'Failed to delete deck. Please try again.');
             }
           },
         },
@@ -99,7 +93,7 @@ export default function DeckDetailScreen() {
   const handleCardPress = async (cardName: string) => {
     console.log('Card pressed:', cardName);
     
-    // Get deck information for this card
+    // NEW: Get deck information for this card
     const deckInfo = getCardDeckInfo(cardName);
     setSelectedCardInfo({ cardName, deckInfo });
     
@@ -204,19 +198,10 @@ export default function DeckDetailScreen() {
     }
   };
 
-  const getGradientColors = (colorIdentity: string[] | undefined): string[] => {
-    if (!colorIdentity || colorIdentity.length === 0) {
-      return [colors.cardBackground, colors.cardBackground];
-    }
-    
-    const gradientColors = scryfallService.getColorGradient(colorIdentity);
-    return gradientColors.length > 1 ? gradientColors : [gradientColors[0], gradientColors[0]];
-  };
-
   if (!deck) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={styles.text}>Deck not found</Text>
+      <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={commonStyles.text}>Deck not found</Text>
       </View>
     );
   }
@@ -241,6 +226,7 @@ export default function DeckDetailScreen() {
     return "flag-outline";
   };
 
+  // FIXED: Use distinct colors for different card types
   const getFlagColor = (card: Card) => {
     if (card.isCommander) return colors.commander; // Orange
     if (card.isPartnerCommander) return colors.partnerCommander; // Red
@@ -248,9 +234,9 @@ export default function DeckDetailScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.section, { paddingTop: 20 }]}>
-        <View style={styles.row}>
+    <View style={commonStyles.container}>
+      <View style={[commonStyles.section, { paddingTop: 20 }]}>
+        <View style={commonStyles.row}>
           <TouchableOpacity
             onPress={() => router.back()}
             style={{ padding: 8, marginLeft: -8 }}
@@ -259,7 +245,12 @@ export default function DeckDetailScreen() {
           </TouchableOpacity>
           
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[styles.title, { fontSize: 20 }]}>{deck.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[commonStyles.title, { fontSize: 20, marginRight: 8 }]}>{deck.name}</Text>
+              {deck.colorIdentity && deck.colorIdentity.length > 0 && (
+                <ColorIdentityDisplay colorIdentity={deck.colorIdentity} size={24} />
+              )}
+            </View>
           </View>
           
           <TouchableOpacity
@@ -269,126 +260,83 @@ export default function DeckDetailScreen() {
             <Icon name="create" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
+
+        <View style={{ alignItems: 'center', marginTop: 8 }}>
+          {deck.isActive ? (
+            <View style={[commonStyles.badge, { backgroundColor: colors.success }]}>
+              <Text style={commonStyles.badgeText}>ACTIVE DECK</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={handleSetActive}
+              style={{
+                backgroundColor: colors.primary,
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 8,
+              }}
+            >
+              <Text style={{ color: colors.background, fontSize: 14, fontWeight: '600' }}>
+                SET AS ACTIVE
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
-        {/* Deck Overview Card - Matching the list style */}
-        <LinearGradient
-          colors={getGradientColors(deck.colorIdentity)}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[
-            styles.card,
-            {
-              borderWidth: deck.isActive ? 3 : 1,
-              borderColor: deck.isActive ? colors.primary : colors.border,
-              marginBottom: 20,
-            }
-          ]}
-        >
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <View style={[styles.row, { alignItems: 'center', marginBottom: 4 }]}>
-                <Text style={[styles.subtitle, { color: colors.text, marginRight: 8 }]}>
-                  {deck.name}
-                </Text>
-                {deck.colorIdentity && deck.colorIdentity.length > 0 && (
-                  <View style={{ flexDirection: 'row' }}>
-                    {deck.colorIdentity.map((color: string, index: number) => (
-                      <View
-                        key={index}
-                        style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: 8,
-                          backgroundColor: scryfallService.getColorHex(color),
-                          marginLeft: index > 0 ? 2 : 0,
-                          borderWidth: 1,
-                          borderColor: colors.border,
-                        }}
-                      />
-                    ))}
-                  </View>
-                )}
-              </View>
-              
-              <Text style={[styles.textSecondary, { fontSize: 14, marginBottom: 4 }]}>
-                {t.totalCards}: {totalCards}
+        <View style={commonStyles.card}>
+          <Text style={[commonStyles.subtitle, { marginBottom: 8 }]}>
+            Deck Overview ({totalCards} cards)
+          </Text>
+          {commanderCard ? (
+            <View>
+              <Text style={[commonStyles.text, { color: colors.commander, fontWeight: '600' }]}>
+                Commander: {commanderCard.name}
               </Text>
-              
-              {/* Commanders */}
-              {commanders.length > 0 && (
-                <View style={{ marginBottom: 4 }}>
-                  {commanders.map((commander: any, index: number) => (
-                    <Text key={index} style={[styles.text, { fontSize: 14, color: colors.commander }]}>
-                      ★ {commander.name}
-                    </Text>
-                  ))}
-                </View>
+              {partnerCommanderCards.length > 0 && (
+                <Text style={[commonStyles.text, { color: colors.partnerCommander, fontWeight: '600' }]}>
+                  Partner Commanders: {partnerCommanderCards.map(p => p.name).join(', ')}
+                </Text>
               )}
-              
-              {/* Partner Commanders */}
-              {partners.length > 0 && (
-                <View style={{ marginBottom: 4 }}>
-                  {partners.map((partner: any, index: number) => (
-                    <Text key={index} style={[styles.text, { fontSize: 14, color: colors.partnerCommander }]}>
-                      ★ {partner.name}
-                    </Text>
-                  ))}
-                </View>
-              )}
+              <Text style={commonStyles.textSecondary}>
+                Other cards: {totalCards - (commanderCard.quantity || 1) - partnerCommanderCards.reduce((sum, p) => sum + (p.quantity || 1), 0)}
+              </Text>
             </View>
-            
-            <View style={{ alignItems: 'flex-end' }}>
-              {deck.isActive ? (
-                <View style={{
-                  backgroundColor: colors.success,
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                  borderRadius: 12,
-                  marginBottom: 8,
-                }}>
-                  <Text style={[styles.text, { color: colors.background, fontSize: 12, fontWeight: 'bold' }]}>
-                    ACTIVE
-                  </Text>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  onPress={handleSetActive}
-                  style={{
-                    backgroundColor: colors.secondary,
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: 8,
-                    marginBottom: 8,
-                  }}
-                >
-                  <Text style={[styles.text, { color: colors.background, fontSize: 12 }]}>
-                    {t.setActive}
-                  </Text>
-                </TouchableOpacity>
-              )}
+          ) : partnerCommanderCards.length > 0 ? (
+            <View>
+              <Text style={[commonStyles.text, { color: colors.partnerCommander, fontWeight: '600' }]}>
+                Partner Commanders: {partnerCommanderCards.map(p => p.name).join(', ')}
+              </Text>
+              <Text style={commonStyles.textSecondary}>
+                Other cards: {totalCards - partnerCommanderCards.reduce((sum, p) => sum + (p.quantity || 1), 0)}
+              </Text>
             </View>
-          </View>
-        </LinearGradient>
+          ) : (
+            <Text style={[commonStyles.text, { color: colors.warning }]}>
+              No commander selected
+            </Text>
+          )}
+        </View>
 
         {conflicts.length > 0 && (
-          <View style={styles.card}>
-            <Text style={[styles.subtitle, { color: colors.conflictedCard, marginBottom: 8 }]}>
-              {t.conflicts}
+          <View style={commonStyles.card}>
+            <Text style={[commonStyles.subtitle, { color: colors.conflictedCard, marginBottom: 8 }]}>
+              Card Conflicts
             </Text>
-            <Text style={[styles.textSecondary, { marginBottom: 16 }]}>
+            <Text style={[commonStyles.textSecondary, { marginBottom: 16 }]}>
               {conflicts.length} cards missing, found in {Object.keys(conflictsByDeck).length} other decks
             </Text>
             
+            {/* FIXED: Expandable sections by deck - only showing decks where cards currently are */}
             <View style={{ marginBottom: 16 }}>
-              <Text style={[styles.text, { fontWeight: '600', marginBottom: 8 }]}>
-                {t.conflicts} by Deck:
+              <Text style={[commonStyles.text, { fontWeight: '600', marginBottom: 8 }]}>
+                Conflicts by Deck:
               </Text>
               {Object.entries(conflictsByDeck).map(([deckName, deckConflicts]) => (
                 <ExpandableSection
                   key={deckName}
-                  title={`${deckName} (${deckConflicts.length} ${t.cards.toLowerCase()})`}
+                  title={`${deckName} (${deckConflicts.length} cards)`}
                   style={{ marginBottom: 8 }}
                 >
                   {deckConflicts.map((conflict, index) => (
@@ -401,31 +349,32 @@ export default function DeckDetailScreen() {
                         borderBottomColor: colors.border,
                       }}
                     >
-                      <Text style={styles.text}>• {conflict.card.name}</Text>
+                      <Text style={commonStyles.text}>• {conflict.card.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </ExpandableSection>
               ))}
             </View>
 
-            <ExpandableSection title={`${t.conflicts} by Card`}>
+            {/* Expandable section by cards */}
+            <ExpandableSection title="Conflicts by Card">
               {conflicts.map((conflict, index) => (
                 <ExpandableSection
                   key={index}
                   title={`${conflict.card.name} (in ${conflict.currentDeck})`}
                   style={{ marginBottom: 8 }}
                 >
-                  <Text style={[styles.textSecondary, { marginBottom: 8 }]}>
-                    {t.currentLocation}: <Text style={{ fontWeight: '600' }}>{conflict.currentDeck}</Text>
+                  <Text style={[commonStyles.textSecondary, { marginBottom: 8 }]}>
+                    Currently located in: <Text style={{ fontWeight: '600' }}>{conflict.currentDeck}</Text>
                   </Text>
-                  <Text style={[styles.textSecondary, { marginBottom: 4 }]}>
+                  <Text style={[commonStyles.textSecondary, { marginBottom: 4 }]}>
                     Also needed by:
                   </Text>
                   {conflict.conflictingDecks.map((deckName, deckIndex) => (
                     <Text
                       key={deckIndex}
                       style={[
-                        styles.textSecondary,
+                        commonStyles.textSecondary,
                         {
                           paddingVertical: 2,
                           paddingLeft: 16,
@@ -441,9 +390,9 @@ export default function DeckDetailScreen() {
           </View>
         )}
 
-        <View style={styles.card}>
-          <Text style={[styles.subtitle, { marginBottom: 8 }]}>
-            {t.cards} ({deck.cards.length} unique)
+        <View style={commonStyles.card}>
+          <Text style={[commonStyles.subtitle, { marginBottom: 8 }]}>
+            Cards ({deck.cards.length} unique)
           </Text>
           {deck.cards.map((card, index) => {
             const isConflicted = conflicts.some(c => c.card.id === card.id);
@@ -468,9 +417,9 @@ export default function DeckDetailScreen() {
                   borderLeftColor: colors.conflictedCard,
                 }}
               >
-                <View style={styles.row}>
+                <View style={commonStyles.row}>
                   <View style={{ flex: 1 }}>
-                    <View style={[styles.row, { alignItems: 'center' }]}>
+                    <View style={[commonStyles.row, { alignItems: 'center' }]}>
                       {shouldShowFlag(card) && (
                         <TouchableOpacity
                           onPress={() => toggleCommander(card.id)}
@@ -489,7 +438,7 @@ export default function DeckDetailScreen() {
                       >
                         <Text 
                           style={[
-                            styles.text, 
+                            commonStyles.text, 
                             { 
                               flex: 1,
                               flexWrap: 'wrap',
@@ -505,18 +454,19 @@ export default function DeckDetailScreen() {
                       </TouchableOpacity>
                     </View>
                     {card.isCommander && (
-                      <Text style={[styles.textSecondary, { fontSize: 12, color: colors.commander, marginLeft: 30 }]}>
-                        {t.commander}
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.commander, marginLeft: 30 }]}>
+                        Commander
                       </Text>
                     )}
                     {card.isPartnerCommander && (
-                      <Text style={[styles.textSecondary, { fontSize: 12, color: colors.partnerCommander, marginLeft: 30 }]}>
-                        {t.partnerCommander}
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.partnerCommander, marginLeft: 30 }]}>
+                        Partner Commander
                       </Text>
                     )}
+                    {/* FIXED: Don't show "Not in deck" for blue cards - they're already visually marked */}
                   </View>
                   
-                  <View style={styles.row}>
+                  <View style={commonStyles.row}>
                     <TouchableOpacity
                       onPress={() => updateCardQuantity(card.id, -1)}
                       style={{
@@ -532,7 +482,7 @@ export default function DeckDetailScreen() {
                       <Icon name="remove" size={16} color={colors.text} />
                     </TouchableOpacity>
                     
-                    <Text style={[styles.text, { minWidth: 24, textAlign: 'center' }]}>
+                    <Text style={[commonStyles.text, { minWidth: 24, textAlign: 'center' }]}>
                       {card.quantity}
                     </Text>
                     
@@ -569,7 +519,7 @@ export default function DeckDetailScreen() {
           }}
         >
           <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600' }}>
-            {t.deleteDeck}
+            Delete Deck
           </Text>
         </TouchableOpacity>
       </ScrollView>

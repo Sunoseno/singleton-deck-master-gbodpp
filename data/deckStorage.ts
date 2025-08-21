@@ -10,12 +10,9 @@ export const deckStorage = {
       const data = await AsyncStorage.getItem(DECKS_STORAGE_KEY);
       if (data) {
         const decks = JSON.parse(data);
-        // Convert date strings back to Date objects and ensure all required properties exist
+        // Convert date strings back to Date objects
         return decks.map((deck: any) => ({
           ...deck,
-          commander: deck.commander || [],
-          partnerCommander: deck.partnerCommander || [],
-          colorIdentity: deck.colorIdentity || [],
           createdAt: new Date(deck.createdAt),
           updatedAt: new Date(deck.updatedAt),
         }));
@@ -43,11 +40,9 @@ export const deckStorage = {
       const newDeck: Deck = {
         ...deck,
         id: Date.now().toString(),
-        commander: deck.commander || [],
-        partnerCommander: deck.partnerCommander || [],
-        colorIdentity: deck.colorIdentity || [],
         createdAt: new Date(),
         updatedAt: new Date(),
+        colorIdentity: deck.colorIdentity || [],
       };
       
       decks.push(newDeck);

@@ -25,35 +25,57 @@ export const useDecks = () => {
     loadDecks();
   }, [loadDecks]);
 
-  const addDeck = useCallback(async (deckName: string, cards: Card[]) => {
+  const addDeck = useCallback(async (deck: Omit<Deck, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
-      console.log('Adding deck:', deckName);
+      console.log('Adding deck:', deck.name);
       
       // Calculate color identity for the deck
-      const commanders = cards.filter(card => card.isCommander || card.isPartnerCommander);
+      const commanders = deck.cards.filter(card => card.isCommander || card.isPartnerCommander);
       const colorIdentity = scryfallService.calculateDeckColorIdentity(commanders);
       
-      // Create the new deck object
-      const newDeckData = {
-        name: deckName,
-        cards,
-        commander: commanders.filter(card => card.isCommander).map(card => card.name),
-        partnerCommander: commanders.filter(card => card.isPartnerCommander).map(card => card.name),
+      // Create the new deck object with temporary ID for optimistic update
+      // NEW: Set new deck as active by default
+      const tempDeck: Deck = {
+        ...deck,
+        id: `temp-${Date.now()}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
         colorIdentity,
-        isActive: false,
+        isActive: true, // NEW: Auto-activate new decks
       };
       
+      // Optimistic update - add deck to state immediately and deactivate others
+      setDecks(prev => {
+        console.log('Optimistic update: adding deck to state and setting as active');
+        const updatedDecks = prev.map(d => ({ ...d, isActive: false })); // Deactivate all existing decks
+        return [...updatedDecks, tempDeck];
+      });
+      
       // Save to storage
-      const newDeck = await deckStorage.addDeck(newDeckData);
+      const newDeck = await deckStorage.addDeck({ ...deck, colorIdentity, isActive: true });
       console.log('Deck added to storage with ID:', newDeck.id);
       
-      // Update state
-      setDecks(prev => [...prev, newDeck]);
+      // Deactivate all other decks in storage
+      const allDecks = await deckStorage.getDecks();
+      for (const existingDeck of allDecks) {
+        if (existingDeck.id !== newDeck.id && existingDeck.isActive) {
+          await deckStorage.updateDeck(existingDeck.id, { isActive: false });
+        }
+      }
+      
+      // Replace the temporary deck with the real one
+      setDecks(prev => {
+        const updated = prev.map(d => d.id === tempDeck.id ? newDeck : { ...d, isActive: false });
+        console.log('Replaced temporary deck with real deck and deactivated others');
+        return updated;
+      });
       
       console.log('Deck addition completed successfully');
       return newDeck;
     } catch (error) {
       console.log('Error adding deck:', error);
+      // Rollback optimistic update on error
+      setDecks(prev => prev.filter(d => !d.id.startsWith('temp-')));
       throw error;
     }
   }, []);
@@ -67,8 +89,6 @@ export const useDecks = () => {
       if (updates.cards) {
         const commanders = updates.cards.filter(card => card.isCommander || card.isPartnerCommander);
         finalUpdates.colorIdentity = scryfallService.calculateDeckColorIdentity(commanders);
-        finalUpdates.commander = commanders.filter(card => card.isCommander).map(card => card.name);
-        finalUpdates.partnerCommander = commanders.filter(card => card.isPartnerCommander).map(card => card.name);
       }
       
       // Optimistic update
@@ -97,6 +117,9 @@ export const useDecks = () => {
     try {
       console.log('Deleting deck:', deckId);
       
+      // Store the deck for potential rollback
+      const deckToDelete = decks.find(d => d.id === deckId);
+      
       // Optimistic update - remove deck from state immediately
       setDecks(prev => {
         const updated = prev.filter(deck => deck.id !== deckId);
@@ -113,13 +136,13 @@ export const useDecks = () => {
       await loadDecks();
       throw error;
     }
-  }, [loadDecks]);
+  }, [decks, loadDecks]);
 
   const setActiveDeck = useCallback(async (deckId: string) => {
     try {
       console.log('Setting active deck:', deckId);
       
-      // Simply change active status without moving cards
+      // FIXED: Simply change active status without moving cards
       // Cards stay in their original decks, we just track which deck is "active"
       setDecks(prev => {
         const updated = prev.map(deck => ({
@@ -152,7 +175,7 @@ export const useDecks = () => {
     }
   }, [loadDecks]);
 
-  // Find where a card is currently located (last active deck that contains it)
+  // FIXED: Find where a card is currently located (last active deck that contains it)
   const findCardLocation = useCallback((cardName: string, allDecks: Deck[]): { deckId: string; deckName: string } | null => {
     console.log('Finding location for card:', cardName);
     
@@ -184,7 +207,7 @@ export const useDecks = () => {
     return { deckId: location.id, deckName: location.name };
   }, []);
 
-  // New logic for determining card conflicts
+  // FIXED: New logic for determining card conflicts
   const getCardConflicts = useCallback((targetDeckId: string): CardConflict[] => {
     console.log('Getting card conflicts for deck:', targetDeckId);
     
@@ -224,7 +247,7 @@ export const useDecks = () => {
     return conflicts;
   }, [decks, findCardLocation]);
 
-  // New function to get conflicts grouped by deck (only showing decks where cards currently are)
+  // FIXED: New function to get conflicts grouped by deck (only showing decks where cards currently are)
   const getConflictsByDeck = useCallback((targetDeckId: string): { [deckName: string]: CardConflict[] } => {
     console.log('Getting conflicts by deck for:', targetDeckId);
     
@@ -246,7 +269,7 @@ export const useDecks = () => {
     return conflictsByDeck;
   }, [getCardConflicts]);
 
-  // Function to get deck information for a specific card
+  // NEW: Function to get deck information for a specific card
   const getCardDeckInfo = useCallback((cardName: string): { currentDeck: string | null; otherDecks: string[] } => {
     console.log('Getting deck info for card:', cardName);
     
@@ -293,9 +316,9 @@ export const useDecks = () => {
     deleteDeck,
     setActiveDeck,
     getCardConflicts,
-    getConflictsByDeck,
-    getCardDeckInfo,
-    findCardLocation,
+    getConflictsByDeck, // NEW: Export the new function
+    getCardDeckInfo, // NEW: Export the new function
+    findCardLocation, // NEW: Export for debugging
     enrichCardWithScryfall,
     refreshDecks: loadDecks,
   };

@@ -15,12 +15,10 @@ export interface Deck {
   id: string;
   name: string;
   cards: Card[];
-  commander: string[];
-  partnerCommander: string[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  colorIdentity: string[];
+  colorIdentity?: string[];
 }
 
 export interface CardConflict {
@@ -38,8 +36,4 @@ export interface ScryfallCard {
     normal: string;
     large: string;
   };
-  printed_name?: {
-    [language: string]: string;
-  };
-  localized_name?: string;
 }
