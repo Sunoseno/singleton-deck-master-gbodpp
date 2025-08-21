@@ -2,194 +2,125 @@
 import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
 
 export const colors = {
-  primary: '#2E7D32',    // Green primary
-  secondary: '#4CAF50',  // Light green
-  accent: '#81C784',     // Lighter green accent
-  background: '#FFFFFF', // White background
-  backgroundAlt: '#F5F5F5', // Light grey background
-  text: '#212121',       // Dark text
-  textSecondary: '#757575', // Grey text
-  success: '#4CAF50',    // Green for success
-  warning: '#FF9800',    // Orange for warnings
-  error: '#F44336',      // Red for errors
-  card: '#FFFFFF',       // White card background
-  border: '#E0E0E0',     // Light border
-  active: '#2E7D32',     // Green for active state
-  conflict: '#E3F2FD',   // Light blue for conflicts
-  // FIXED: New distinct colors for different card states
-  commander: '#FF9800',  // Orange for commander
-  partnerCommander: '#F44336', // Red for partner commander
-  conflictedCard: '#2196F3',   // Blue for conflicted cards
-  conflictedCardBg: '#E3F2FD', // Light blue background for conflicted cards
+  primary: '#007AFF',
+  secondary: '#5856D6',
+  success: '#34C759',
+  warning: '#FF9500',
+  error: '#FF3B30',
+  info: '#5AC8FA',
+  
+  background: '#FFFFFF',
+  cardBackground: '#F8F9FA',
+  border: '#E5E5EA',
+  
+  text: '#000000',
+  textSecondary: '#8E8E93',
+  
+  commander: '#FFD700',
+  partnerCommander: '#FF6B6B',
+  
+  // MTG Color Identity Colors
+  white: '#FFFBD5',
+  blue: '#0E68AB',
+  black: '#150B00',
+  red: '#D3202A',
+  green: '#00733E',
+  colorless: '#8B8B8B',
 };
 
-export const buttonStyles = StyleSheet.create({
-  instructionsButton: {
-    backgroundColor: colors.primary,
-    alignSelf: 'center',
-    width: '100%',
-  },
-  backButton: {
-    backgroundColor: colors.backgroundAlt,
-    alignSelf: 'center',
-    width: '100%',
-  },
-  primaryButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryButton: {
-    backgroundColor: colors.backgroundAlt,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  dangerButton: {
-    backgroundColor: colors.error,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
-
 export const commonStyles = StyleSheet.create({
-  wrapper: {
-    backgroundColor: colors.background,
-    width: '100%',
-    height: '100%',
-  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    width: '100%',
-    height: '100%',
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    maxWidth: 800,
-    width: '100%',
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  text: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: colors.text,
-    lineHeight: 24,
-  },
-  textSecondary: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
+  } as ViewStyle,
+  
   section: {
-    width: '100%',
     paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  buttonContainer: {
-    width: '100%',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    gap: 12,
-  },
+    paddingVertical: 16,
+  } as ViewStyle,
+  
   card: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 8,
-    width: '100%',
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
-  },
-  activeCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.active,
-    borderWidth: 2,
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 8,
-    width: '100%',
-    boxShadow: '0px 4px 12px rgba(46, 125, 50, 0.2)',
-    elevation: 4,
-  },
-  conflictCard: {
-    backgroundColor: colors.conflictedCardBg,
-    borderColor: colors.conflictedCard,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 8,
-    width: '100%',
-    boxShadow: '0px 2px 8px rgba(33, 150, 243, 0.2)',
-    elevation: 2,
-  },
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  } as ViewStyle,
+  
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  rowStart: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: 12,
-  },
-  icon: {
-    width: 24,
-    height: 24,
-  },
+  } as ViewStyle,
+  
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: colors.text,
+  } as TextStyle,
+  
+  subtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  } as TextStyle,
+  
+  text: {
+    fontSize: 16,
+    color: colors.text,
+  } as TextStyle,
+  
+  textSecondary: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  } as TextStyle,
+  
   badge: {
     backgroundColor: colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 6,
     alignSelf: 'flex-start',
-  },
+  } as ViewStyle,
+  
   badgeText: {
-    color: colors.background,
     fontSize: 12,
     fontWeight: '600',
-  },
+    color: colors.background,
+  } as TextStyle,
+  
+  button: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  } as ViewStyle,
+  
+  buttonText: {
+    color: colors.background,
+    fontSize: 16,
+    fontWeight: '600',
+  } as TextStyle,
+  
   input: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 16,
-    color: colors.text,
     backgroundColor: colors.background,
-  },
+  } as ViewStyle,
+  
   inputFocused: {
     borderColor: colors.primary,
-    borderWidth: 2,
-  },
+  } as ViewStyle,
 });

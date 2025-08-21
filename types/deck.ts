@@ -36,4 +36,8 @@ export interface ScryfallCard {
     normal: string;
     large: string;
   };
+  printed_name?: {
+    [language: string]: string;
+  };
+  localized_name?: string;
 }

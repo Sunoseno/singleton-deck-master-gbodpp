@@ -6,7 +6,8 @@ import { useDecks } from '../hooks/useDecks';
 import { commonStyles, colors } from '../styles/commonStyles';
 import Button from '../components/Button';
 import Icon from '../components/Icon';
-import ColorIdentityDisplay from '../components/ColorIdentityDisplay';
+import { LinearGradient } from 'expo-linear-gradient';
+import { scryfallService } from '../services/scryfallService';
 
 export default function DeckListScreen() {
   const { decks, setActiveDeck } = useDecks();
@@ -30,17 +31,39 @@ export default function DeckListScreen() {
     }
   };
 
-  // FIXED: Sort decks to show active deck first
+  const handleSettingsPress = () => {
+    console.log('Settings pressed');
+    router.push('/settings');
+  };
+
+  // Sort decks to show active deck first
   const sortedDecks = [...decks].sort((a, b) => {
     if (a.isActive && !b.isActive) return -1;
     if (!a.isActive && b.isActive) return 1;
     return 0;
   });
 
+  const getGradientColors = (colorIdentity: string[] | undefined): string[] => {
+    return scryfallService.getColorGradient(colorIdentity || []);
+  };
+
   return (
     <View style={commonStyles.container}>
       <View style={[commonStyles.section, { paddingTop: 20 }]}>
-        <Text style={commonStyles.title}>My Commander Decks</Text>
+        <View style={commonStyles.row}>
+          <Text style={[commonStyles.title, { flex: 1 }]}>My Commander Decks</Text>
+          <TouchableOpacity
+            onPress={handleSettingsPress}
+            style={{
+              padding: 8,
+              borderRadius: 8,
+              backgroundColor: colors.cardBackground,
+              marginRight: 12,
+            }}
+          >
+            <Icon name="settings-outline" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
         <Button
           text="Add New Deck"
           onPress={() => router.push('/add-deck')}
@@ -58,74 +81,127 @@ export default function DeckListScreen() {
           </View>
         ) : (
           sortedDecks.map((deck) => {
-            const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
             const commanderCard = deck.cards.find(card => card.isCommander);
             const partnerCommanderCards = deck.cards.filter(card => card.isPartnerCommander);
+            const gradientColors = getGradientColors(deck.colorIdentity);
             
             return (
               <TouchableOpacity
                 key={deck.id}
                 style={[
-                  commonStyles.card,
-                  { marginBottom: 12 },
+                  { marginBottom: 12, borderRadius: 12, overflow: 'hidden' },
                   deck.isActive && { borderColor: colors.success, borderWidth: 2 }
                 ]}
                 onPress={() => handleDeckPress(deck.id)}
               >
-                <View style={commonStyles.row}>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                      <Text style={[commonStyles.subtitle, { marginRight: 8 }]}>{deck.name}</Text>
-                      {deck.colorIdentity && deck.colorIdentity.length > 0 && (
-                        <ColorIdentityDisplay colorIdentity={deck.colorIdentity} size={20} />
+                <LinearGradient
+                  colors={gradientColors.length > 1 ? gradientColors : [gradientColors[0], gradientColors[0]]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{
+                    padding: 16,
+                    minHeight: 80,
+                  }}
+                >
+                  <View style={commonStyles.row}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[
+                        commonStyles.subtitle, 
+                        { 
+                          marginBottom: 8,
+                          color: '#FFFFFF',
+                          fontWeight: 'bold',
+                          textShadowColor: 'rgba(0, 0, 0, 0.75)',
+                          textShadowOffset: { width: 1, height: 1 },
+                          textShadowRadius: 2,
+                        }
+                      ]}>
+                        {deck.name}
+                      </Text>
+                      
+                      {/* Commander names - each on separate line, no labels */}
+                      {commanderCard && (
+                        <Text style={[
+                          commonStyles.textSecondary, 
+                          { 
+                            color: '#FFFFFF',
+                            textShadowColor: 'rgba(0, 0, 0, 0.75)',
+                            textShadowOffset: { width: 1, height: 1 },
+                            textShadowRadius: 2,
+                            marginBottom: 2,
+                          }
+                        ]}>
+                          {commanderCard.name}
+                        </Text>
+                      )}
+                      
+                      {partnerCommanderCards.map((partner, index) => (
+                        <Text 
+                          key={index}
+                          style={[
+                            commonStyles.textSecondary, 
+                            { 
+                              color: '#FFFFFF',
+                              textShadowColor: 'rgba(0, 0, 0, 0.75)',
+                              textShadowOffset: { width: 1, height: 1 },
+                              textShadowRadius: 2,
+                              marginBottom: 2,
+                            }
+                          ]}
+                        >
+                          {partner.name}
+                        </Text>
+                      ))}
+                      
+                      {!commanderCard && partnerCommanderCards.length === 0 && (
+                        <Text style={[
+                          commonStyles.textSecondary, 
+                          { 
+                            color: '#FFCCCC',
+                            textShadowColor: 'rgba(0, 0, 0, 0.75)',
+                            textShadowOffset: { width: 1, height: 1 },
+                            textShadowRadius: 2,
+                          }
+                        ]}>
+                          No commander selected
+                        </Text>
+                      )}
+                      
+                      {deck.isActive && (
+                        <View style={[
+                          commonStyles.badge, 
+                          { 
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+                            marginTop: 8,
+                            alignSelf: 'flex-start',
+                          }
+                        ]}>
+                          <Text style={[commonStyles.badgeText, { color: colors.success }]}>ACTIVE</Text>
+                        </View>
                       )}
                     </View>
                     
-                    {commanderCard ? (
-                      <Text style={[commonStyles.textSecondary, { color: colors.commander }]}>
-                        Commander: {commanderCard.name}
-                      </Text>
-                    ) : partnerCommanderCards.length > 0 ? (
-                      <Text style={[commonStyles.textSecondary, { color: colors.partnerCommander }]}>
-                        Partners: {partnerCommanderCards.map(p => p.name).join(', ')}
-                      </Text>
-                    ) : (
-                      <Text style={[commonStyles.textSecondary, { color: colors.warning }]}>
-                        No commander selected
-                      </Text>
-                    )}
-                    
-                    <Text style={commonStyles.textSecondary}>
-                      {totalCards} cards • {deck.cards.length} unique
-                    </Text>
-                    
-                    {deck.isActive && (
-                      <View style={[commonStyles.badge, { backgroundColor: colors.success, marginTop: 8 }]}>
-                        <Text style={commonStyles.badgeText}>ACTIVE</Text>
-                      </View>
+                    {!deck.isActive && (
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleSetActive(deck.id);
+                        }}
+                        style={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: 6,
+                          marginLeft: 12,
+                        }}
+                      >
+                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
+                          SET ACTIVE
+                        </Text>
+                      </TouchableOpacity>
                     )}
                   </View>
-                  
-                  {!deck.isActive && (
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleSetActive(deck.id);
-                      }}
-                      style={{
-                        backgroundColor: colors.primary,
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        borderRadius: 6,
-                        marginLeft: 12,
-                      }}
-                    >
-                      <Text style={{ color: colors.background, fontSize: 12, fontWeight: '600' }}>
-                        SET ACTIVE
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                </LinearGradient>
               </TouchableOpacity>
             );
           })

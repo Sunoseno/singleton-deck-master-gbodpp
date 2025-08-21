@@ -80,13 +80,18 @@ class ScryfallService {
     });
   }
 
-  public async searchCard(cardName: string): Promise<ScryfallCard | null> {
+  public async searchCard(cardName: string, language: string = 'en'): Promise<ScryfallCard | null> {
     try {
-      console.log('Searching for card:', cardName);
+      console.log('Searching for card:', cardName, 'in language:', language);
       
       return await this.queueRequest(async () => {
         const encodedName = encodeURIComponent(cardName);
-        const url = `${this.BASE_URL}/cards/named?exact=${encodedName}`;
+        let url = `${this.BASE_URL}/cards/named?exact=${encodedName}`;
+        
+        // Add language parameter if not English
+        if (language !== 'en') {
+          url += `&format=json&include_multilingual=true`;
+        }
         
         console.log('Making Scryfall API request to:', url);
         const response = await fetch(url);
@@ -100,6 +105,13 @@ class ScryfallService {
         }
         
         const data = await response.json();
+        
+        // If we requested a non-English language and the card has multilingual data
+        if (language !== 'en' && data.printed_name && data.printed_name[language]) {
+          console.log('Found localized card name:', data.printed_name[language]);
+          data.localized_name = data.printed_name[language];
+        }
+        
         console.log('Found card on Scryfall:', data.name);
         return data;
       });
@@ -148,15 +160,15 @@ class ScryfallService {
     }
   }
 
-  public async getCardWithImage(cardName: string): Promise<{ card: ScryfallCard; imagePath: string | null } | null> {
+  public async getCardWithImage(cardName: string, language: string = 'en'): Promise<{ card: ScryfallCard; imagePath: string | null } | null> {
     try {
-      const card = await this.searchCard(cardName);
+      const card = await this.searchCard(cardName, language);
       if (!card) {
         return null;
       }
 
       let imagePath: string | null = null;
-      // FIXED: Use higher resolution 'normal' instead of 'small'
+      // Use higher resolution 'normal' instead of 'small'
       if (card.image_uris?.normal) {
         imagePath = await this.downloadAndCacheImage(card.image_uris.normal, cardName);
       }
@@ -178,6 +190,27 @@ class ScryfallService {
     });
     
     return Array.from(allColors).sort();
+  }
+
+  public getColorGradient(colorIdentity: string[]): string[] {
+    const colorMap: { [key: string]: string } = {
+      'W': '#FFFBD5', // White
+      'U': '#0E68AB', // Blue
+      'B': '#150B00', // Black
+      'R': '#D3202A', // Red
+      'G': '#00733E', // Green
+    };
+
+    if (!colorIdentity || colorIdentity.length === 0) {
+      return ['#8B8B8B']; // Colorless - gray
+    }
+
+    if (colorIdentity.length === 1) {
+      return [colorMap[colorIdentity[0]] || '#8B8B8B'];
+    }
+
+    // For multiple colors, return all colors for gradient
+    return colorIdentity.map(color => colorMap[color] || '#8B8B8B');
   }
 }
 

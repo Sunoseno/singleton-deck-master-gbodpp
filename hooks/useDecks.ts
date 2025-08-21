@@ -3,10 +3,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { Deck, Card, CardConflict } from '../types/deck';
 import { deckStorage } from '../data/deckStorage';
 import { scryfallService } from '../services/scryfallService';
+import { useSettings } from './useSettings';
 
 export const useDecks = () => {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
+  const { settings } = useSettings();
 
   const loadDecks = useCallback(async () => {
     setLoading(true);
@@ -34,14 +36,14 @@ export const useDecks = () => {
       const colorIdentity = scryfallService.calculateDeckColorIdentity(commanders);
       
       // Create the new deck object with temporary ID for optimistic update
-      // NEW: Set new deck as active by default
+      // Set new deck as active by default
       const tempDeck: Deck = {
         ...deck,
         id: `temp-${Date.now()}`,
         createdAt: new Date(),
         updatedAt: new Date(),
         colorIdentity,
-        isActive: true, // NEW: Auto-activate new decks
+        isActive: true,
       };
       
       // Optimistic update - add deck to state immediately and deactivate others
@@ -142,7 +144,7 @@ export const useDecks = () => {
     try {
       console.log('Setting active deck:', deckId);
       
-      // FIXED: Simply change active status without moving cards
+      // Simply change active status without moving cards
       // Cards stay in their original decks, we just track which deck is "active"
       setDecks(prev => {
         const updated = prev.map(deck => ({
@@ -175,7 +177,7 @@ export const useDecks = () => {
     }
   }, [loadDecks]);
 
-  // FIXED: Find where a card is currently located (last active deck that contains it)
+  // Find where a card is currently located (last active deck that contains it)
   const findCardLocation = useCallback((cardName: string, allDecks: Deck[]): { deckId: string; deckName: string } | null => {
     console.log('Finding location for card:', cardName);
     
@@ -207,7 +209,7 @@ export const useDecks = () => {
     return { deckId: location.id, deckName: location.name };
   }, []);
 
-  // FIXED: New logic for determining card conflicts
+  // New logic for determining card conflicts
   const getCardConflicts = useCallback((targetDeckId: string): CardConflict[] => {
     console.log('Getting card conflicts for deck:', targetDeckId);
     
@@ -247,7 +249,7 @@ export const useDecks = () => {
     return conflicts;
   }, [decks, findCardLocation]);
 
-  // FIXED: New function to get conflicts grouped by deck (only showing decks where cards currently are)
+  // New function to get conflicts grouped by deck (only showing decks where cards currently are)
   const getConflictsByDeck = useCallback((targetDeckId: string): { [deckName: string]: CardConflict[] } => {
     console.log('Getting conflicts by deck for:', targetDeckId);
     
@@ -269,7 +271,7 @@ export const useDecks = () => {
     return conflictsByDeck;
   }, [getCardConflicts]);
 
-  // NEW: Function to get deck information for a specific card
+  // Function to get deck information for a specific card
   const getCardDeckInfo = useCallback((cardName: string): { currentDeck: string | null; otherDecks: string[] } => {
     console.log('Getting deck info for card:', cardName);
     
@@ -298,12 +300,13 @@ export const useDecks = () => {
   const enrichCardWithScryfall = useCallback(async (cardName: string): Promise<{ card: any; imagePath: string | null } | null> => {
     try {
       console.log('Enriching card with Scryfall data:', cardName);
-      return await scryfallService.getCardWithImage(cardName);
+      const language = settings?.translateCardNames ? settings.language : 'en';
+      return await scryfallService.getCardWithImage(cardName, language);
     } catch (error) {
       console.log('Error enriching card with Scryfall:', error);
       return null;
     }
-  }, []);
+  }, [settings]);
 
   const activeDeck = decks.find(d => d.isActive);
 
@@ -316,9 +319,9 @@ export const useDecks = () => {
     deleteDeck,
     setActiveDeck,
     getCardConflicts,
-    getConflictsByDeck, // NEW: Export the new function
-    getCardDeckInfo, // NEW: Export the new function
-    findCardLocation, // NEW: Export for debugging
+    getConflictsByDeck,
+    getCardDeckInfo,
+    findCardLocation,
     enrichCardWithScryfall,
     refreshDecks: loadDecks,
   };
