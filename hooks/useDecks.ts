@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Deck, Card, CardConflict } from '../types/deck';
 import { deckStorage } from '../data/deckStorage';
 
@@ -7,72 +7,99 @@ export const useDecks = () => {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadDecks = async () => {
+  const loadDecks = useCallback(async () => {
     setLoading(true);
     try {
       const loadedDecks = await deckStorage.getDecks();
+      console.log('Loaded decks from storage:', loadedDecks.length);
       setDecks(loadedDecks);
     } catch (error) {
       console.log('Error loading decks:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadDecks();
-  }, []);
+  }, [loadDecks]);
 
-  const addDeck = async (deck: Omit<Deck, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addDeck = useCallback(async (deck: Omit<Deck, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
+      console.log('Adding deck:', deck.name);
       const newDeck = await deckStorage.addDeck(deck);
-      setDecks(prev => [...prev, newDeck]);
+      console.log('Deck added to storage, updating state');
+      
+      // Force a fresh load from storage to ensure consistency
+      await loadDecks();
+      
+      console.log('State updated after adding deck');
       return newDeck;
     } catch (error) {
       console.log('Error adding deck:', error);
       throw error;
     }
-  };
+  }, [loadDecks]);
 
-  const updateDeck = async (deckId: string, updates: Partial<Deck>) => {
+  const updateDeck = useCallback(async (deckId: string, updates: Partial<Deck>) => {
     try {
+      console.log('Updating deck:', deckId);
       await deckStorage.updateDeck(deckId, updates);
-      setDecks(prev => prev.map(deck => 
-        deck.id === deckId 
-          ? { ...deck, ...updates, updatedAt: new Date() }
-          : deck
-      ));
+      
+      // Update local state immediately
+      setDecks(prev => {
+        const updated = prev.map(deck => 
+          deck.id === deckId 
+            ? { ...deck, ...updates, updatedAt: new Date() }
+            : deck
+        );
+        console.log('Local state updated for deck:', deckId);
+        return updated;
+      });
     } catch (error) {
       console.log('Error updating deck:', error);
       throw error;
     }
-  };
+  }, []);
 
-  const deleteDeck = async (deckId: string) => {
+  const deleteDeck = useCallback(async (deckId: string) => {
     try {
+      console.log('Deleting deck:', deckId);
       await deckStorage.deleteDeck(deckId);
-      setDecks(prev => prev.filter(deck => deck.id !== deckId));
+      console.log('Deck deleted from storage, updating state');
+      
+      // Force a fresh load from storage to ensure consistency
+      await loadDecks();
+      
+      console.log('State updated after deleting deck');
     } catch (error) {
       console.log('Error deleting deck:', error);
       throw error;
     }
-  };
+  }, [loadDecks]);
 
-  const setActiveDeck = async (deckId: string) => {
+  const setActiveDeck = useCallback(async (deckId: string) => {
     try {
+      console.log('Setting active deck:', deckId);
       await deckStorage.setActiveDeck(deckId);
-      setDecks(prev => prev.map(deck => ({
-        ...deck,
-        isActive: deck.id === deckId,
-        updatedAt: deck.id === deckId ? new Date() : deck.updatedAt,
-      })));
+      
+      // Update local state immediately
+      setDecks(prev => {
+        const updated = prev.map(deck => ({
+          ...deck,
+          isActive: deck.id === deckId,
+          updatedAt: deck.id === deckId ? new Date() : deck.updatedAt,
+        }));
+        console.log('Local state updated for active deck:', deckId);
+        return updated;
+      });
     } catch (error) {
       console.log('Error setting active deck:', error);
       throw error;
     }
-  };
+  }, []);
 
-  const getCardConflicts = (targetDeckId: string): CardConflict[] => {
+  const getCardConflicts = useCallback((targetDeckId: string): CardConflict[] => {
     const targetDeck = decks.find(d => d.id === targetDeckId);
     const activeDeck = decks.find(d => d.isActive);
     
@@ -98,7 +125,7 @@ export const useDecks = () => {
     });
 
     return conflicts;
-  };
+  }, [decks]);
 
   const activeDeck = decks.find(d => d.isActive);
 

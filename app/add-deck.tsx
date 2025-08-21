@@ -263,13 +263,14 @@ export default function AddDeckScreen() {
 
   const saveDeck = async () => {
     try {
+      console.log('Saving deck:', deckName);
       await addDeck({
         name: deckName.trim(),
         cards,
         isActive: false,
       });
 
-      console.log('Deck saved successfully:', deckName);
+      console.log('Deck saved successfully, navigating back');
       router.back();
     } catch (error) {
       console.log('Error saving deck:', error);
@@ -308,7 +309,10 @@ export default function AddDeckScreen() {
       <View style={[commonStyles.section, { paddingTop: 20 }]}>
         <View style={commonStyles.row}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => {
+              console.log('Navigating back from add deck');
+              router.back();
+            }}
             style={{ padding: 8, marginLeft: -8 }}
           >
             <Icon name="arrow-back" size={24} color={colors.text} />

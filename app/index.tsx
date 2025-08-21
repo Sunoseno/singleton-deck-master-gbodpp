@@ -1,27 +1,41 @@
 
 import { Text, View, ScrollView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDecks } from '../hooks/useDecks';
 import { commonStyles, colors } from '../styles/commonStyles';
 import Icon from '../components/Icon';
 import Button from '../components/Button';
 
 export default function DeckListScreen() {
-  const { decks, setActiveDeck } = useDecks();
+  const { decks, setActiveDeck, loading } = useDecks();
+
+  useEffect(() => {
+    console.log('DeckListScreen: decks updated, count:', decks.length);
+  }, [decks]);
 
   const handleDeckPress = (deckId: string) => {
+    console.log('Navigating to deck:', deckId);
     router.push(`/deck/${deckId}`);
   };
 
   const handleSetActive = async (deckId: string) => {
     try {
+      console.log('Setting deck as active:', deckId);
       await setActiveDeck(deckId);
-      console.log('Deck set as active');
+      console.log('Deck set as active successfully');
     } catch (error) {
       console.log('Error setting active deck:', error);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={commonStyles.text}>Loading decks...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={commonStyles.container}>
@@ -32,7 +46,10 @@ export default function DeckListScreen() {
         
         <Button
           text="Add New Deck"
-          onPress={() => router.push('/add-deck')}
+          onPress={() => {
+            console.log('Navigating to add deck screen');
+            router.push('/add-deck');
+          }}
           style={{ marginBottom: 20 }}
         />
       </View>
