@@ -15,10 +15,12 @@ export interface Deck {
   id: string;
   name: string;
   cards: Card[];
+  commander: string[];
+  partnerCommander: string[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  colorIdentity?: string[];
+  colorIdentity: string[];
 }
 
 export interface CardConflict {

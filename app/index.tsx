@@ -107,7 +107,7 @@ export default function DeckListScreen() {
                     </Text>
                     
                     {/* Commanders */}
-                    {deck.commander.length > 0 && (
+                    {deck.commander && deck.commander.length > 0 && (
                       <View style={{ marginBottom: 4 }}>
                         {deck.commander.map((commanderName, index) => (
                           <Text key={index} style={[styles.textSecondary, { fontSize: 14 }]}>
@@ -118,7 +118,7 @@ export default function DeckListScreen() {
                     )}
                     
                     {/* Partner Commanders */}
-                    {deck.partnerCommander.length > 0 && (
+                    {deck.partnerCommander && deck.partnerCommander.length > 0 && (
                       <View style={{ marginBottom: 4 }}>
                         {deck.partnerCommander.map((partnerName, index) => (
                           <Text key={index} style={[styles.textSecondary, { fontSize: 14 }]}>

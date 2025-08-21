@@ -15,7 +15,7 @@ export default function SettingsScreen() {
   const [clearingCache, setClearingCache] = useState(false);
   const [cacheInfo, setCacheInfo] = useState<{ fileCount: number; totalSize: number } | null>(null);
   
-  // Always call useTranslations, but provide a fallback
+  // Always call useTranslations with a fallback
   const t = useTranslations(settings?.language || 'en');
 
   useEffect(() => {
