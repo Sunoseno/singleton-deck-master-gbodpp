@@ -49,18 +49,47 @@ export default function AddDeckScreen() {
   };
 
   const toggleCommander = (cardId: string) => {
+    const commanders = cards.filter(card => card.isCommander);
+    const partnerCommanders = cards.filter(card => card.isPartnerCommander);
+    const clickedCard = cards.find(card => card.id === cardId);
+    
+    if (!clickedCard) return;
+
+    console.log('Toggle commander clicked for:', clickedCard.name);
+    console.log('Current commanders:', commanders.length);
+    console.log('Current partner commanders:', partnerCommanders.length);
+
     setCards(prev => prev.map(card => {
       if (card.id === cardId) {
+        // If clicking on current commander (orange flag)
         if (card.isCommander) {
-          // Remove commander status
-          return { ...card, isCommander: false };
-        } else {
-          // Set as commander and remove partner status
+          console.log('Clicking orange flag - turning red');
+          return { ...card, isCommander: false, isPartnerCommander: true };
+        }
+        
+        // If clicking on current partner commander (red flag)
+        if (card.isPartnerCommander) {
+          console.log('Clicking red flag - removing commander status');
+          return { ...card, isCommander: false, isPartnerCommander: false };
+        }
+        
+        // If no commander exists, make this the commander (orange)
+        if (commanders.length === 0 && partnerCommanders.length === 0) {
+          console.log('No commanders - making this commander (orange)');
           return { ...card, isCommander: true, isPartnerCommander: false };
         }
-      } else if (card.isCommander) {
-        // Remove commander status from other cards when setting a new commander
-        return { ...card, isCommander: false };
+        
+        // If there's a commander but no partner, make this partner (red)
+        if (commanders.length === 0 && partnerCommanders.length === 1) {
+          console.log('One partner exists - making this partner (red)');
+          return { ...card, isCommander: false, isPartnerCommander: true };
+        }
+        
+        // If there's only a commander (orange), make this partner (red)
+        if (commanders.length === 1 && partnerCommanders.length === 0) {
+          console.log('One commander exists - making this partner (red)');
+          return { ...card, isCommander: false, isPartnerCommander: true };
+        }
       }
       return card;
     }));
@@ -211,19 +240,26 @@ export default function AddDeckScreen() {
   };
 
   const shouldShowFlag = (card: Card): boolean => {
-    return card.isCommander || card.isPartnerCommander || false;
+    const commanders = cards.filter(c => c.isCommander);
+    const partners = cards.filter(c => c.isPartnerCommander);
+    
+    // Always show flag for commanders and partner commanders
+    if (card.isCommander || card.isPartnerCommander) return true;
+    
+    // Show flag for other cards only if no commanders exist or if there's only one partner commander
+    return commanders.length === 0 && partners.length <= 1;
   };
 
   const getFlagIcon = (card: Card): string => {
-    if (card.isCommander) return 'star';
-    if (card.isPartnerCommander) return 'people';
-    return 'flag';
+    if (card.isCommander) return 'flag';
+    if (card.isPartnerCommander) return 'flag';
+    return 'flag-outline';
   };
 
   const getFlagColor = (card: Card): string => {
     if (card.isCommander) return colors.commander;
     if (card.isPartnerCommander) return colors.partnerCommander;
-    return colors.primary;
+    return colors.textSecondary;
   };
 
   return (
@@ -238,6 +274,12 @@ export default function AddDeckScreen() {
             <Icon name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.title}>{t.addNewDeck}</Text>
+          <TouchableOpacity
+            onPress={handleSave}
+            style={{ marginLeft: 16 }}
+          >
+            <Icon name="checkmark" size={24} color={colors.primary} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -321,81 +363,107 @@ export default function AddDeckScreen() {
               </TouchableOpacity>
             </View>
             
-            {cards.map((card) => (
-              <View key={card.id} style={[styles.row, { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.rowStart}>
-                    <Text style={styles.text}>{card.name}</Text>
-                    {shouldShowFlag(card) && (
-                      <Icon 
-                        name={getFlagIcon(card)} 
-                        size={16} 
-                        color={getFlagColor(card)} 
-                      />
+            {cards.map((card, index) => (
+              <View
+                key={card.id}
+                style={{
+                  paddingVertical: 12,
+                  borderBottomWidth: index < cards.length - 1 ? 1 : 0,
+                  borderBottomColor: colors.border,
+                  backgroundColor: card.isCommander 
+                    ? colors.commander + '20' 
+                    : card.isPartnerCommander 
+                    ? colors.partnerCommander + '20' 
+                    : 'transparent',
+                  paddingHorizontal: (card.isCommander || card.isPartnerCommander) ? 8 : 0,
+                  borderRadius: (card.isCommander || card.isPartnerCommander) ? 8 : 0,
+                  marginVertical: (card.isCommander || card.isPartnerCommander) ? 2 : 0,
+                }}
+              >
+                <View style={styles.row}>
+                  <View style={{ flex: 1 }}>
+                    <View style={[styles.row, { alignItems: 'center' }]}>
+                      {shouldShowFlag(card) && (
+                        <TouchableOpacity
+                          onPress={() => toggleCommander(card.id)}
+                          style={{ padding: 4, marginRight: 8 }}
+                        >
+                          <Icon 
+                            name={getFlagIcon(card)} 
+                            size={18} 
+                            color={getFlagColor(card)} 
+                          />
+                        </TouchableOpacity>
+                      )}
+                      <Text 
+                        style={[
+                          styles.text, 
+                          { 
+                            flex: 1,
+                            flexWrap: 'wrap',
+                            lineHeight: 20,
+                          }
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {card.name}
+                      </Text>
+                    </View>
+                    {card.isCommander && (
+                      <Text style={[styles.textSecondary, { fontSize: 12, color: colors.commander, marginLeft: 30 }]}>
+                        Commander
+                      </Text>
+                    )}
+                    {card.isPartnerCommander && (
+                      <Text style={[styles.textSecondary, { fontSize: 12, color: colors.partnerCommander, marginLeft: 30 }]}>
+                        Partner Commander
+                      </Text>
                     )}
                   </View>
-                </View>
-                
-                <View style={styles.rowStart}>
-                  <TouchableOpacity
-                    onPress={() => toggleCommander(card.id)}
-                    style={{
-                      backgroundColor: card.isCommander ? colors.commander : card.isPartnerCommander ? colors.partnerCommander : colors.backgroundAlt,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 4,
-                      marginRight: 8,
-                    }}
-                  >
-                    <Text style={{
-                      color: card.isCommander || card.isPartnerCommander ? colors.background : colors.text,
-                      fontSize: 12,
-                      fontWeight: '600',
-                    }}>
-                      {card.isCommander ? 'CMD' : card.isPartnerCommander ? 'PTR' : 'SET'}
+                  
+                  <View style={styles.row}>
+                    <TouchableOpacity
+                      onPress={() => updateCardQuantity(card.id, -1)}
+                      style={{
+                        backgroundColor: colors.border,
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 8,
+                      }}
+                    >
+                      <Icon name="remove" size={16} color={colors.text} />
+                    </TouchableOpacity>
+                    
+                    <Text style={[styles.text, { minWidth: 24, textAlign: 'center' }]}>
+                      {card.quantity}
                     </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    onPress={() => updateCardQuantity(card.id, -1)}
-                    style={{
-                      backgroundColor: colors.backgroundAlt,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 4,
-                    }}
-                  >
-                    <Icon name="remove" size={16} color={colors.text} />
-                  </TouchableOpacity>
-                  
-                  <Text style={[styles.text, { marginHorizontal: 12, minWidth: 20, textAlign: 'center' }]}>
-                    {card.quantity}
-                  </Text>
-                  
-                  <TouchableOpacity
-                    onPress={() => updateCardQuantity(card.id, 1)}
-                    style={{
-                      backgroundColor: colors.primary,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 4,
-                    }}
-                  >
-                    <Icon name="add" size={16} color={colors.background} />
-                  </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      onPress={() => updateCardQuantity(card.id, 1)}
+                      style={{
+                        backgroundColor: colors.primary,
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginLeft: 8,
+                      }}
+                    >
+                      <Icon name="add" size={16} color={colors.background} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             ))}
           </View>
         )}
 
-        {/* Save Button */}
-        <TouchableOpacity
-          onPress={handleSave}
-          style={[styles.button, { marginBottom: 40 }]}
-        >
-          <Text style={styles.buttonText}>{t.saveDeck}</Text>
-        </TouchableOpacity>
+        {/* Bottom padding */}
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
