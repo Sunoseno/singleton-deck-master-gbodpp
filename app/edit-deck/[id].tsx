@@ -6,6 +6,7 @@ import { useDecks } from '../../hooks/useDecks';
 import { commonStyles, colors } from '../../styles/commonStyles';
 import { Card } from '../../types/deck';
 import Icon from '../../components/Icon';
+import * as DocumentPicker from 'expo-document-picker';
 
 export default function EditDeckScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -133,8 +134,10 @@ export default function EditDeckScreen() {
       const trimmedLine = line.trim();
       if (!trimmedLine) continue;
       
-      // Match pattern: number followed by space and card name
-      const match = trimmedLine.match(/^(\d+)\s+(.+)$/);
+      // Enhanced regex to handle both formats:
+      // Format 1: "1 Card Name"
+      // Format 2: "1 Card Name (Edition) Set#"
+      const match = trimmedLine.match(/^(\d+)\s+([^(]+?)(?:\s*\([^)]*\))?(?:\s+\S+)?$/);
       
       if (match) {
         const quantity = parseInt(match[1], 10);
@@ -204,6 +207,70 @@ export default function EditDeckScreen() {
     } catch (error) {
       console.log('Error importing decklist:', error);
       Alert.alert('Error', 'Failed to import decklist. Please check the format.');
+    }
+  };
+
+  const handleUploadFile = async () => {
+    try {
+      console.log('Opening document picker for decklist file');
+      
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'text/plain',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) {
+        console.log('File picker was canceled');
+        return;
+      }
+
+      if (result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        console.log('Selected file:', file.name, 'Size:', file.size);
+
+        // Read the file content
+        const response = await fetch(file.uri);
+        const fileContent = await response.text();
+        
+        console.log('File content length:', fileContent.length);
+        
+        if (!fileContent.trim()) {
+          Alert.alert('Error', 'The selected file appears to be empty.');
+          return;
+        }
+
+        // Parse the file content
+        const importedCards = parseDecklistText(fileContent);
+        
+        if (importedCards.length === 0) {
+          Alert.alert('Error', 'No cards could be parsed from the file. Please check the format.');
+          return;
+        }
+
+        // Merge imported cards with existing cards
+        const mergedCards = [...cards];
+        
+        importedCards.forEach(importedCard => {
+          const existingIndex = mergedCards.findIndex(card => 
+            card.name.toLowerCase() === importedCard.name.toLowerCase()
+          );
+          
+          if (existingIndex !== -1) {
+            mergedCards[existingIndex].quantity += importedCard.quantity;
+          } else {
+            mergedCards.push(importedCard);
+          }
+        });
+
+        // Sort the merged cards alphabetically
+        setCards(mergedCards.sort((a, b) => a.name.localeCompare(b.name)));
+        
+        console.log(`Imported ${importedCards.length} unique cards from file`);
+        Alert.alert('Success', `Imported ${importedCards.length} unique cards from ${file.name}!`);
+      }
+    } catch (error) {
+      console.log('Error uploading file:', error);
+      Alert.alert('Error', 'Failed to upload and parse the file. Please try again.');
     }
   };
 
@@ -349,13 +416,15 @@ export default function EditDeckScreen() {
                 Paste Decklist Text
               </Text>
               <Text style={[commonStyles.textSecondary, { fontSize: 12, marginBottom: 8 }]}>
-                Format: "1 Arena of Glory{'\n'}1 Battle Hymn{'\n'}2 Lightning Bolt"
+                Supports both formats:{'\n'}
+                • "1 Arena of Glory"{'\n'}
+                • "1 Arena of Glory (OTJ) 251"
               </Text>
               <TextInput
                 style={[commonStyles.input, { height: 120, textAlignVertical: 'top' }]}
                 value={decklistText}
                 onChangeText={setDecklistText}
-                placeholder="1 Arena of Glory&#10;1 Battle Hymn&#10;1 Beetleback Chief&#10;..."
+                placeholder="1 Arena of Glory&#10;1 Battle Hymn (OTJ) 123&#10;1 Beetleback Chief&#10;..."
                 placeholderTextColor={colors.textSecondary}
                 multiline
               />
@@ -374,7 +443,7 @@ export default function EditDeckScreen() {
                   }}
                 >
                   <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600' }}>
-                    Import Cards
+                    Import Text
                   </Text>
                 </TouchableOpacity>
                 
@@ -392,6 +461,29 @@ export default function EditDeckScreen() {
                     Clear
                   </Text>
                 </TouchableOpacity>
+              </View>
+
+              <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+                <TouchableOpacity
+                  onPress={handleUploadFile}
+                  style={{
+                    backgroundColor: colors.secondary,
+                    paddingVertical: 12,
+                    paddingHorizontal: 24,
+                    borderRadius: 8,
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon name="document-text" size={20} color={colors.background} style={{ marginRight: 8 }} />
+                  <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600' }}>
+                    Upload Text File
+                  </Text>
+                </TouchableOpacity>
+                <Text style={[commonStyles.textSecondary, { fontSize: 12, textAlign: 'center', marginTop: 4 }]}>
+                  Select a .txt file with your decklist
+                </Text>
               </View>
             </View>
           )}
