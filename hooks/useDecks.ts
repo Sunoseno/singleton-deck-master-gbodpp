@@ -52,24 +52,7 @@ export const useDecks = () => {
       colorIdentity = [...new Set(colorIdentity)].sort();
       console.log('Final deck color identity:', colorIdentity);
       
-      // Create the new deck object with temporary ID for optimistic update
-      const tempDeck: Deck = {
-        ...deck,
-        id: `temp-${Date.now()}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        colorIdentity,
-        isActive: true, // Auto-activate new decks
-      };
-      
-      // Optimistic update - add deck to BEGINNING of array and deactivate others
-      setDecks(prev => {
-        console.log('Optimistic update: adding deck to beginning of state and setting as active');
-        const updatedDecks = prev.map(d => ({ ...d, isActive: false })); // Deactivate all existing decks
-        return [tempDeck, ...updatedDecks]; // Add new deck to beginning
-      });
-      
-      // Save to storage
+      // Save to storage first to get the real ID
       const newDeck = await deckStorage.addDeck({ ...deck, colorIdentity, isActive: true });
       console.log('Deck added to storage with ID:', newDeck.id);
       
@@ -81,20 +64,17 @@ export const useDecks = () => {
         }
       }
       
-      // Replace the temporary deck with the real one at the beginning
+      // Update state: add new deck to beginning and deactivate others
       setDecks(prev => {
-        const withoutTemp = prev.filter(d => d.id !== tempDeck.id);
-        const updated = withoutTemp.map(d => ({ ...d, isActive: false }));
-        console.log('Replaced temporary deck with real deck and deactivated others');
-        return [newDeck, ...updated]; // Keep new deck at beginning
+        console.log('Adding new deck to state and deactivating others');
+        const updatedDecks = prev.map(d => ({ ...d, isActive: false })); // Deactivate all existing decks
+        return [newDeck, ...updatedDecks]; // Add new deck to beginning
       });
       
       console.log('Deck addition completed successfully');
       return newDeck;
     } catch (error) {
       console.log('Error adding deck:', error);
-      // Rollback optimistic update on error
-      setDecks(prev => prev.filter(d => !d.id.startsWith('temp-')));
       throw error;
     }
   }, []);
@@ -129,23 +109,23 @@ export const useDecks = () => {
         console.log('Updated deck color identity:', finalUpdates.colorIdentity);
       }
       
-      // Optimistic update
+      // Save to storage first
+      await deckStorage.updateDeck(deckId, finalUpdates);
+      console.log('Deck updated in storage');
+      
+      // Update state
       setDecks(prev => {
         const updated = prev.map(deck => 
           deck.id === deckId 
             ? { ...deck, ...finalUpdates, updatedAt: new Date() }
             : deck
         );
-        console.log('Optimistic update: deck updated in state');
+        console.log('Deck updated in state');
         return updated;
       });
-      
-      // Save to storage
-      await deckStorage.updateDeck(deckId, finalUpdates);
-      console.log('Deck updated in storage');
     } catch (error) {
       console.log('Error updating deck:', error);
-      // Rollback optimistic update on error
+      // Rollback by reloading from storage
       await loadDecks();
       throw error;
     }
@@ -155,30 +135,40 @@ export const useDecks = () => {
     try {
       console.log('Deleting deck:', deckId);
       
-      // Store the deck for potential rollback
-      const deckToDelete = decks.find(d => d.id === deckId);
-      
-      // Optimistic update - remove deck from state immediately
-      setDecks(prev => {
-        const updated = prev.filter(deck => deck.id !== deckId);
-        console.log('Optimistic update: deck removed from state');
-        return updated;
-      });
-      
-      // Delete from storage
+      // Delete from storage first
       await deckStorage.deleteDeck(deckId);
       console.log('Deck deleted from storage');
+      
+      // Update state - remove deck
+      setDecks(prev => {
+        const updated = prev.filter(deck => deck.id !== deckId);
+        console.log('Deck removed from state');
+        return updated;
+      });
     } catch (error) {
       console.log('Error deleting deck:', error);
-      // Rollback optimistic update on error
+      // Rollback by reloading from storage
       await loadDecks();
       throw error;
     }
-  }, [decks, loadDecks]);
+  }, [loadDecks]);
 
   const setActiveDeck = useCallback(async (deckId: string) => {
     try {
       console.log('Setting active deck:', deckId);
+      
+      // Save to storage first - update all decks' active status
+      const allDecks = await deckStorage.getDecks();
+      for (const deck of allDecks) {
+        const shouldBeActive = deck.id === deckId;
+        if (deck.isActive !== shouldBeActive) {
+          await deckStorage.updateDeck(deck.id, { 
+            isActive: shouldBeActive,
+            updatedAt: shouldBeActive ? new Date() : deck.updatedAt 
+          });
+        }
+      }
+      console.log('Active deck updated in storage');
       
       // Update deck order - move active deck to top, maintain order for others
       setDecks(prev => {
@@ -203,26 +193,12 @@ export const useDecks = () => {
         
         // Return with active deck first, then others in original order
         const result = [updatedActiveDeck, ...updatedOtherDecks];
-        console.log('Optimistic update: active deck moved to top, others maintain order');
+        console.log('Active deck moved to top in state, others maintain order');
         return result;
       });
-      
-      // Save to storage - update all decks' active status
-      const allDecks = await deckStorage.getDecks();
-      for (const deck of allDecks) {
-        const shouldBeActive = deck.id === deckId;
-        if (deck.isActive !== shouldBeActive) {
-          await deckStorage.updateDeck(deck.id, { 
-            isActive: shouldBeActive,
-            updatedAt: shouldBeActive ? new Date() : deck.updatedAt 
-          });
-        }
-      }
-      
-      console.log('Active deck updated in storage');
     } catch (error) {
       console.log('Error setting active deck:', error);
-      // Rollback optimistic update on error
+      // Rollback by reloading from storage
       await loadDecks();
       throw error;
     }
