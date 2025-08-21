@@ -175,50 +175,99 @@ export const useDecks = () => {
     }
   }, [loadDecks]);
 
+  // FIXED: Find where a card is currently located (last active deck that contains it)
+  const findCardLocation = useCallback((cardName: string, allDecks: Deck[]): { deckId: string; deckName: string } | null => {
+    console.log('Finding location for card:', cardName);
+    
+    // Find all decks that contain this card
+    const decksWithCard = allDecks.filter(deck => 
+      deck.cards.some(card => card.name.toLowerCase() === cardName.toLowerCase())
+    );
+    
+    console.log('Decks containing card:', decksWithCard.map(d => d.name));
+    
+    if (decksWithCard.length === 0) {
+      return null;
+    }
+    
+    // If there's an active deck that contains the card, that's where it is
+    const activeDeckWithCard = decksWithCard.find(deck => deck.isActive);
+    if (activeDeckWithCard) {
+      console.log('Card is in active deck:', activeDeckWithCard.name);
+      return { deckId: activeDeckWithCard.id, deckName: activeDeckWithCard.name };
+    }
+    
+    // Otherwise, find the most recently updated deck that contains the card
+    const sortedDecks = decksWithCard.sort((a, b) => 
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+    
+    const location = sortedDecks[0];
+    console.log('Card is in most recently updated deck:', location.name);
+    return { deckId: location.id, deckName: location.name };
+  }, []);
+
   // FIXED: New logic for determining card conflicts
   const getCardConflicts = useCallback((targetDeckId: string): CardConflict[] => {
+    console.log('Getting card conflicts for deck:', targetDeckId);
+    
     const targetDeck = decks.find(d => d.id === targetDeckId);
-    const activeDeck = decks.find(d => d.isActive);
     
     if (!targetDeck || targetDeck.isActive) {
+      console.log('Target deck is active or not found, no conflicts');
       return []; // No conflicts if this is the active deck
     }
 
     const conflicts: CardConflict[] = [];
 
     targetDeck.cards.forEach(card => {
-      // Find which other decks contain this card
-      const decksWithThisCard = decks.filter(deck => 
-        deck.id !== targetDeckId && 
-        deck.cards.some(c => c.name.toLowerCase() === card.name.toLowerCase())
-      );
-
-      if (decksWithThisCard.length > 0) {
-        // Find the last active deck that contains this card
-        // If the current active deck has it, that's where it is
-        // Otherwise, find the most recently active deck that has it
-        let currentLocation = '';
+      console.log('Checking conflicts for card:', card.name);
+      
+      // Find where this card is currently located
+      const cardLocation = findCardLocation(card.name, decks);
+      
+      if (cardLocation && cardLocation.deckId !== targetDeckId) {
+        console.log('Card conflict found:', card.name, 'is in', cardLocation.deckName);
         
-        if (activeDeck && activeDeck.cards.some(c => c.name.toLowerCase() === card.name.toLowerCase())) {
-          currentLocation = activeDeck.name;
-        } else {
-          // Find the most recently updated deck that has this card
-          const sortedDecks = decksWithThisCard.sort((a, b) => 
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-          );
-          currentLocation = sortedDecks[0]?.name || 'Unknown';
-        }
+        // Find all other decks that also need this card (for the conflictingDecks array)
+        const allDecksWithCard = decks.filter(deck => 
+          deck.id !== targetDeckId && 
+          deck.cards.some(c => c.name.toLowerCase() === card.name.toLowerCase())
+        );
 
         conflicts.push({
           card,
-          currentDeck: currentLocation,
-          conflictingDecks: decksWithThisCard.map(d => d.name),
+          currentDeck: cardLocation.deckName,
+          conflictingDecks: allDecksWithCard.map(d => d.name),
         });
       }
     });
 
+    console.log('Total conflicts found:', conflicts.length);
     return conflicts;
-  }, [decks]);
+  }, [decks, findCardLocation]);
+
+  // FIXED: New function to get conflicts grouped by deck (only showing decks where cards currently are)
+  const getConflictsByDeck = useCallback((targetDeckId: string): { [deckName: string]: CardConflict[] } => {
+    console.log('Getting conflicts by deck for:', targetDeckId);
+    
+    const conflicts = getCardConflicts(targetDeckId);
+    const conflictsByDeck: { [deckName: string]: CardConflict[] } = {};
+    
+    conflicts.forEach(conflict => {
+      // Only add to the deck where the card currently is (not all decks that need it)
+      const currentDeckName = conflict.currentDeck;
+      
+      if (!conflictsByDeck[currentDeckName]) {
+        conflictsByDeck[currentDeckName] = [];
+      }
+      
+      conflictsByDeck[currentDeckName].push(conflict);
+    });
+    
+    console.log('Conflicts by deck:', Object.keys(conflictsByDeck));
+    return conflictsByDeck;
+  }, [getCardConflicts]);
 
   const enrichCardWithScryfall = useCallback(async (cardName: string): Promise<{ card: any; imagePath: string | null } | null> => {
     try {
@@ -241,6 +290,8 @@ export const useDecks = () => {
     deleteDeck,
     setActiveDeck,
     getCardConflicts,
+    getConflictsByDeck, // NEW: Export the new function
+    findCardLocation, // NEW: Export for debugging
     enrichCardWithScryfall,
     refreshDecks: loadDecks,
   };

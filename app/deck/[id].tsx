@@ -12,8 +12,9 @@ import ColorIdentityDisplay from '../../components/ColorIdentityDisplay';
 
 export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { decks, deleteDeck, setActiveDeck, getCardConflicts, updateDeck, enrichCardWithScryfall } = useDecks();
+  const { decks, deleteDeck, setActiveDeck, getCardConflicts, getConflictsByDeck, updateDeck, enrichCardWithScryfall } = useDecks();
   const [conflicts, setConflicts] = useState<CardConflict[]>([]);
+  const [conflictsByDeck, setConflictsByDeck] = useState<{ [deckName: string]: CardConflict[] }>({});
   const [selectedCardImage, setSelectedCardImage] = useState<{
     cardName: string;
     imagePath: string | null;
@@ -25,12 +26,16 @@ export default function DeckDetailScreen() {
   useEffect(() => {
     if (deck && !deck.isActive) {
       const cardConflicts = getCardConflicts(deck.id);
+      const deckConflicts = getConflictsByDeck(deck.id);
       setConflicts(cardConflicts);
+      setConflictsByDeck(deckConflicts);
       console.log('Card conflicts for deck:', deck.name, cardConflicts.length);
+      console.log('Conflicts by deck:', Object.keys(deckConflicts));
     } else {
       setConflicts([]);
+      setConflictsByDeck({});
     }
-  }, [deck, decks, getCardConflicts]);
+  }, [deck, decks, getCardConflicts, getConflictsByDeck]);
 
   const handleDelete = () => {
     console.log('Delete button pressed for deck:', deck?.name);
@@ -219,17 +224,6 @@ export default function DeckDetailScreen() {
     return colors.textSecondary;
   };
 
-  // Group conflicts by deck for expandable sections
-  const conflictsByDeck = conflicts.reduce((acc, conflict) => {
-    conflict.conflictingDecks.forEach(deckName => {
-      if (!acc[deckName]) {
-        acc[deckName] = [];
-      }
-      acc[deckName].push(conflict);
-    });
-    return acc;
-  }, {} as Record<string, CardConflict[]>);
-
   return (
     <View style={commonStyles.container}>
       <View style={[commonStyles.section, { paddingTop: 20 }]}>
@@ -325,7 +319,7 @@ export default function DeckDetailScreen() {
               {conflicts.length} cards missing, found in {Object.keys(conflictsByDeck).length} other decks
             </Text>
             
-            {/* Expandable sections by deck */}
+            {/* FIXED: Expandable sections by deck - only showing decks where cards currently are */}
             <View style={{ marginBottom: 16 }}>
               <Text style={[commonStyles.text, { fontWeight: '600', marginBottom: 8 }]}>
                 Conflicts by Deck:
@@ -347,9 +341,6 @@ export default function DeckDetailScreen() {
                       }}
                     >
                       <Text style={commonStyles.text}>• {conflict.card.name}</Text>
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12 }]}>
-                        Currently in: {conflict.currentDeck}
-                      </Text>
                     </TouchableOpacity>
                   ))}
                 </ExpandableSection>
