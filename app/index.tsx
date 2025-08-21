@@ -3,13 +3,18 @@ import { Text, View, ScrollView, TouchableOpacity } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { useDecks } from '../hooks/useDecks';
-import { commonStyles, colors } from '../styles/commonStyles';
+import { useSettings } from '../hooks/useSettings';
+import { useTheme } from '../hooks/useTheme';
+import { useTranslations } from '../utils/localization';
 import Button from '../components/Button';
 import Icon from '../components/Icon';
-import ColorIdentityDisplay from '../components/ColorIdentityDisplay';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function DeckListScreen() {
   const { decks, setActiveDeck } = useDecks();
+  const { settings } = useSettings();
+  const { colors, styles } = useTheme();
+  const t = useTranslations(settings?.language || 'en');
 
   useEffect(() => {
     console.log('Decks updated:', decks.length);
@@ -30,19 +35,58 @@ export default function DeckListScreen() {
     }
   };
 
-  // FIXED: Sort decks to show active deck first
-  const sortedDecks = [...decks].sort((a, b) => {
-    if (a.isActive && !b.isActive) return -1;
-    if (!a.isActive && b.isActive) return 1;
-    return 0;
-  });
+  // Get color gradient for deck background
+  const getDeckGradientColors = (colorIdentity: string[]): string[] => {
+    const colorMap: { [key: string]: string } = {
+      'W': '#FFFBD5', // White
+      'U': '#0E68AB', // Blue
+      'B': '#150B00', // Black
+      'R': '#D3202A', // Red
+      'G': '#00733E', // Green
+    };
+
+    if (!colorIdentity || colorIdentity.length === 0) {
+      // Colorless - grey gradient
+      return ['#E0E0E0', '#BDBDBD'];
+    }
+
+    if (colorIdentity.length === 1) {
+      // Single color - gradient from light to dark
+      const baseColor = colorMap[colorIdentity[0]] || '#E0E0E0';
+      return [baseColor, baseColor + '80']; // Add transparency for gradient effect
+    }
+
+    // Multiple colors - use all colors in gradient
+    return colorIdentity.map(color => colorMap[color] || '#E0E0E0');
+  };
+
+  // FIXED: Sort decks to show active deck first, but maintain order for others
+  const sortedDecks = (() => {
+    const activeDeck = decks.find(d => d.isActive);
+    const inactiveDecks = decks.filter(d => !d.isActive);
+    
+    // If there's an active deck, put it first, then maintain original order for others
+    if (activeDeck) {
+      return [activeDeck, ...inactiveDecks];
+    }
+    
+    return decks;
+  })();
 
   return (
-    <View style={commonStyles.container}>
-      <View style={[commonStyles.section, { paddingTop: 20 }]}>
-        <Text style={commonStyles.title}>My Commander Decks</Text>
+    <View style={styles.container}>
+      <View style={[styles.section, { paddingTop: 20 }]}>
+        <View style={styles.row}>
+          <Text style={styles.title}>{t.myDecks || 'My Commander Decks'}</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/settings')}
+            style={{ marginLeft: 16 }}
+          >
+            <Icon name="settings-outline" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
         <Button
-          text="Add New Deck"
+          text={t.addNewDeck}
           onPress={() => router.push('/add-deck')}
           style={{ marginTop: 16 }}
         />
@@ -50,82 +94,96 @@ export default function DeckListScreen() {
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
         {sortedDecks.length === 0 ? (
-          <View style={[commonStyles.card, { alignItems: 'center', paddingVertical: 40 }]}>
+          <View style={[styles.card, { alignItems: 'center', paddingVertical: 40 }]}>
             <Icon name="library-outline" size={48} color={colors.textSecondary} />
-            <Text style={[commonStyles.text, { marginTop: 16, textAlign: 'center' }]}>
-              No decks yet. Add your first Commander deck to get started!
+            <Text style={[styles.text, { marginTop: 16, textAlign: 'center' }]}>
+              {t.noDecksYet || 'No decks yet. Add your first Commander deck to get started!'}
             </Text>
           </View>
         ) : (
           sortedDecks.map((deck) => {
-            const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
             const commanderCard = deck.cards.find(card => card.isCommander);
             const partnerCommanderCards = deck.cards.filter(card => card.isPartnerCommander);
+            const gradientColors = getDeckGradientColors(deck.colorIdentity || []);
             
             return (
               <TouchableOpacity
                 key={deck.id}
-                style={[
-                  commonStyles.card,
-                  { marginBottom: 12 },
-                  deck.isActive && { borderColor: colors.success, borderWidth: 2 }
-                ]}
                 onPress={() => handleDeckPress(deck.id)}
+                style={{ marginBottom: 12 }}
               >
-                <View style={commonStyles.row}>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                      <Text style={[commonStyles.subtitle, { marginRight: 8 }]}>{deck.name}</Text>
-                      {deck.colorIdentity && deck.colorIdentity.length > 0 && (
-                        <ColorIdentityDisplay colorIdentity={deck.colorIdentity} size={20} />
+                <LinearGradient
+                  colors={gradientColors}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[
+                    styles.card,
+                    { 
+                      borderWidth: deck.isActive ? 2 : 1,
+                      borderColor: deck.isActive ? colors.success : colors.border,
+                    }
+                  ]}
+                >
+                  <View style={styles.row}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.subtitle, { marginBottom: 8, color: colors.text }]}>
+                        {deck.name}
+                      </Text>
+                      
+                      {/* Commander names - each on separate line, no labels */}
+                      {commanderCard && (
+                        <Text style={[styles.textSecondary, { color: colors.commander, marginBottom: 4 }]}>
+                          {commanderCard.name}
+                        </Text>
+                      )}
+                      
+                      {partnerCommanderCards.length > 0 && (
+                        <View>
+                          {partnerCommanderCards.map((partner, index) => (
+                            <Text 
+                              key={index}
+                              style={[styles.textSecondary, { color: colors.partnerCommander, marginBottom: 4 }]}
+                            >
+                              {partner.name}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+                      
+                      {!commanderCard && partnerCommanderCards.length === 0 && (
+                        <Text style={[styles.textSecondary, { color: colors.warning, marginBottom: 4 }]}>
+                          {t.noCommanderSelected || 'No commander selected'}
+                        </Text>
+                      )}
+                      
+                      {deck.isActive && (
+                        <View style={[styles.badge, { backgroundColor: colors.success, marginTop: 8 }]}>
+                          <Text style={styles.badgeText}>{t.active || 'ACTIVE'}</Text>
+                        </View>
                       )}
                     </View>
                     
-                    {commanderCard ? (
-                      <Text style={[commonStyles.textSecondary, { color: colors.commander }]}>
-                        Commander: {commanderCard.name}
-                      </Text>
-                    ) : partnerCommanderCards.length > 0 ? (
-                      <Text style={[commonStyles.textSecondary, { color: colors.partnerCommander }]}>
-                        Partners: {partnerCommanderCards.map(p => p.name).join(', ')}
-                      </Text>
-                    ) : (
-                      <Text style={[commonStyles.textSecondary, { color: colors.warning }]}>
-                        No commander selected
-                      </Text>
-                    )}
-                    
-                    <Text style={commonStyles.textSecondary}>
-                      {totalCards} cards • {deck.cards.length} unique
-                    </Text>
-                    
-                    {deck.isActive && (
-                      <View style={[commonStyles.badge, { backgroundColor: colors.success, marginTop: 8 }]}>
-                        <Text style={commonStyles.badgeText}>ACTIVE</Text>
-                      </View>
+                    {!deck.isActive && (
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleSetActive(deck.id);
+                        }}
+                        style={{
+                          backgroundColor: colors.primary,
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: 6,
+                          marginLeft: 12,
+                        }}
+                      >
+                        <Text style={{ color: colors.background, fontSize: 12, fontWeight: '600' }}>
+                          {t.setActive || 'SET ACTIVE'}
+                        </Text>
+                      </TouchableOpacity>
                     )}
                   </View>
-                  
-                  {!deck.isActive && (
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleSetActive(deck.id);
-                      }}
-                      style={{
-                        backgroundColor: colors.primary,
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        borderRadius: 6,
-                        marginLeft: 12,
-                      }}
-                    >
-                      <Text style={{ color: colors.background, fontSize: 12, fontWeight: '600' }}>
-                        SET ACTIVE
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                </LinearGradient>
               </TouchableOpacity>
             );
           })

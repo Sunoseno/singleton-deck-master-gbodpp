@@ -17,6 +17,10 @@ export interface Translations {
   deleteDeck: string;
   setActive: string;
   clearAllCards: string;
+  myDecks: string;
+  noDecksYet: string;
+  noCommanderSelected: string;
+  active: string;
   
   // Card Management
   cards: string;
@@ -76,6 +80,7 @@ export interface Translations {
   deleteAllImages: string;
   cacheCleared: string;
   failedToClear: string;
+  cardDeckNamesNote: string;
 }
 
 const translations: Record<string, Translations> = {
@@ -97,6 +102,10 @@ const translations: Record<string, Translations> = {
     deleteDeck: 'Delete Deck',
     setActive: 'Set Active',
     clearAllCards: 'Clear All Cards',
+    myDecks: 'My Commander Decks',
+    noDecksYet: 'No decks yet. Add your first Commander deck to get started!',
+    noCommanderSelected: 'No commander selected',
+    active: 'ACTIVE',
     
     // Card Management
     cards: 'Cards',
@@ -156,6 +165,7 @@ const translations: Record<string, Translations> = {
     deleteAllImages: 'This will delete all downloaded card images from Scryfall',
     cacheCleared: 'Cache cleared successfully!',
     failedToClear: 'Failed to clear cache. Please try again.',
+    cardDeckNamesNote: 'Card and deck names will always remain in English to ensure compatibility with the Scryfall database.',
   },
   
   de: {
@@ -176,6 +186,10 @@ const translations: Record<string, Translations> = {
     deleteDeck: 'Deck löschen',
     setActive: 'Aktivieren',
     clearAllCards: 'Alle Karten löschen',
+    myDecks: 'Meine Commander-Decks',
+    noDecksYet: 'Noch keine Decks. Fügen Sie Ihr erstes Commander-Deck hinzu, um zu beginnen!',
+    noCommanderSelected: 'Kein Kommandeur ausgewählt',
+    active: 'AKTIV',
     
     // Card Management
     cards: 'Karten',
@@ -235,6 +249,7 @@ const translations: Record<string, Translations> = {
     deleteAllImages: 'Dies löscht alle heruntergeladenen Kartenbilder von Scryfall',
     cacheCleared: 'Cache erfolgreich geleert!',
     failedToClear: 'Cache konnte nicht geleert werden. Bitte versuchen Sie es erneut.',
+    cardDeckNamesNote: 'Karten- und Deck-Namen bleiben immer auf Englisch, um die Kompatibilität mit der Scryfall-Datenbank zu gewährleisten.',
   },
   
   fr: {
@@ -255,6 +270,10 @@ const translations: Record<string, Translations> = {
     deleteDeck: 'Supprimer le deck',
     setActive: 'Activer',
     clearAllCards: 'Effacer toutes les cartes',
+    myDecks: 'Mes decks Commander',
+    noDecksYet: 'Aucun deck pour le moment. Ajoutez votre premier deck Commander pour commencer !',
+    noCommanderSelected: 'Aucun commandant sélectionné',
+    active: 'ACTIF',
     
     // Card Management
     cards: 'Cartes',
@@ -314,6 +333,7 @@ const translations: Record<string, Translations> = {
     deleteAllImages: 'Cela supprimera toutes les images de cartes téléchargées depuis Scryfall',
     cacheCleared: 'Cache vidé avec succès !',
     failedToClear: 'Échec du vidage du cache. Veuillez réessayer.',
+    cardDeckNamesNote: 'Les noms des cartes et des decks resteront toujours en anglais pour assurer la compatibilité avec la base de données Scryfall.',
   },
   
   it: {
@@ -334,6 +354,10 @@ const translations: Record<string, Translations> = {
     deleteDeck: 'Elimina mazzo',
     setActive: 'Attiva',
     clearAllCards: 'Cancella tutte le carte',
+    myDecks: 'I miei mazzi Commander',
+    noDecksYet: 'Nessun mazzo ancora. Aggiungi il tuo primo mazzo Commander per iniziare!',
+    noCommanderSelected: 'Nessun comandante selezionato',
+    active: 'ATTIVO',
     
     // Card Management
     cards: 'Carte',
@@ -393,6 +417,7 @@ const translations: Record<string, Translations> = {
     deleteAllImages: 'Questo eliminerà tutte le immagini delle carte scaricate da Scryfall',
     cacheCleared: 'Cache svuotata con successo!',
     failedToClear: 'Impossibile svuotare la cache. Riprova.',
+    cardDeckNamesNote: 'I nomi delle carte e dei mazzi rimarranno sempre in inglese per garantire la compatibilità con il database Scryfall.',
   },
   
   es: {
@@ -413,6 +438,10 @@ const translations: Record<string, Translations> = {
     deleteDeck: 'Eliminar mazo',
     setActive: 'Activar',
     clearAllCards: 'Limpiar todas las cartas',
+    myDecks: 'Mis mazos Commander',
+    noDecksYet: 'Aún no hay mazos. ¡Agrega tu primer mazo Commander para comenzar!',
+    noCommanderSelected: 'Ningún comandante seleccionado',
+    active: 'ACTIVO',
     
     // Card Management
     cards: 'Cartas',
@@ -472,6 +501,7 @@ const translations: Record<string, Translations> = {
     deleteAllImages: 'Esto eliminará todas las imágenes de cartas descargadas de Scryfall',
     cacheCleared: '¡Caché limpiado exitosamente!',
     failedToClear: 'Error al limpiar el caché. Inténtalo de nuevo.',
+    cardDeckNamesNote: 'Los nombres de las cartas y mazos siempre permanecerán en inglés para asegurar la compatibilidad con la base de datos de Scryfall.',
   },
 };
 

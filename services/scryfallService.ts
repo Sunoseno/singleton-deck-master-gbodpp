@@ -168,6 +168,71 @@ class ScryfallService {
     }
   }
 
+  // NEW: Get cache size information
+  public async getCacheSize(): Promise<{ fileCount: number; totalSize: number }> {
+    try {
+      await this.ensureCacheDirectory();
+      
+      const dirInfo = await FileSystem.getInfoAsync(this.CACHE_DIR);
+      if (!dirInfo.exists) {
+        return { fileCount: 0, totalSize: 0 };
+      }
+
+      const files = await FileSystem.readDirectoryAsync(this.CACHE_DIR);
+      let totalSize = 0;
+      
+      for (const file of files) {
+        try {
+          const filePath = `${this.CACHE_DIR}${file}`;
+          const fileInfo = await FileSystem.getInfoAsync(filePath);
+          if (fileInfo.exists && fileInfo.size) {
+            totalSize += fileInfo.size;
+          }
+        } catch (error) {
+          console.log('Error getting file size for:', file, error);
+        }
+      }
+
+      console.log('Cache info:', { fileCount: files.length, totalSize });
+      return { fileCount: files.length, totalSize };
+    } catch (error) {
+      console.log('Error getting cache size:', error);
+      return { fileCount: 0, totalSize: 0 };
+    }
+  }
+
+  // NEW: Clear image cache
+  public async clearImageCache(): Promise<void> {
+    try {
+      console.log('Clearing image cache...');
+      await this.ensureCacheDirectory();
+      
+      const dirInfo = await FileSystem.getInfoAsync(this.CACHE_DIR);
+      if (!dirInfo.exists) {
+        console.log('Cache directory does not exist');
+        return;
+      }
+
+      const files = await FileSystem.readDirectoryAsync(this.CACHE_DIR);
+      console.log('Found', files.length, 'files to delete');
+      
+      for (const file of files) {
+        try {
+          const filePath = `${this.CACHE_DIR}${file}`;
+          await FileSystem.deleteAsync(filePath);
+          console.log('Deleted cached file:', file);
+        } catch (error) {
+          console.log('Error deleting file:', file, error);
+        }
+      }
+
+      console.log('Image cache cleared successfully');
+    } catch (error) {
+      console.log('Error clearing image cache:', error);
+      throw error;
+    }
+  }
+
   public calculateDeckColorIdentity(commanderCards: Array<{ colorIdentity?: string[] }>): string[] {
     const allColors = new Set<string>();
     

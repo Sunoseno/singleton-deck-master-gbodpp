@@ -66,6 +66,9 @@ export default function SettingsScreen() {
               await scryfallService.clearImageCache();
               Alert.alert(t.success, t.cacheCleared);
               console.log('Cache cleared successfully');
+              // Refresh cache info
+              const info = await scryfallService.getCacheSize();
+              setCacheInfo(info);
             } catch (error) {
               console.log('Error clearing cache:', error);
               Alert.alert(t.error, t.failedToClear);
@@ -145,7 +148,7 @@ export default function SettingsScreen() {
                   paddingVertical: 12,
                   paddingHorizontal: 16,
                   marginBottom: 8,
-                  backgroundColor: settings.language === lang.code ? colors.primary + '20' : colors.cardBackground,
+                  backgroundColor: settings.language === lang.code ? colors.primary + '20' : colors.cardBackground || colors.card,
                   borderRadius: 8,
                   borderWidth: settings.language === lang.code ? 2 : 1,
                   borderColor: settings.language === lang.code ? colors.primary : colors.border,
@@ -186,9 +189,13 @@ export default function SettingsScreen() {
           
           <TouchableOpacity
             style={[
-              styles.button,
               {
                 backgroundColor: colors.error,
+                paddingVertical: 12,
+                paddingHorizontal: 24,
+                borderRadius: 8,
+                alignItems: 'center',
+                justifyContent: 'center',
                 opacity: clearingCache ? 0.6 : 1,
               }
             ]}
@@ -202,7 +209,7 @@ export default function SettingsScreen() {
                 color={colors.background} 
                 style={{ marginRight: 8 }} 
               />
-              <Text style={styles.buttonText}>
+              <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600' }}>
                 {clearingCache ? t.clearing : t.clearCache}
               </Text>
             </View>
@@ -214,12 +221,12 @@ export default function SettingsScreen() {
         </View>
 
         {/* Info Section */}
-        <View style={[styles.card, { backgroundColor: colors.info + '20', borderColor: colors.info }]}>
+        <View style={[styles.card, { backgroundColor: colors.info ? colors.info + '20' : colors.primary + '20', borderColor: colors.info || colors.primary }]}>
           <View style={styles.row}>
-            <Icon name="information-circle" size={20} color={colors.info} style={{ marginRight: 12 }} />
+            <Icon name="information-circle" size={20} color={colors.info || colors.primary} style={{ marginRight: 12 }} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.text, { fontSize: 14, lineHeight: 20 }]}>
-                Card and deck names will always remain in English to ensure compatibility with the Scryfall database.
+                {t.cardDeckNamesNote || 'Card and deck names will always remain in English to ensure compatibility with the Scryfall database.'}
               </Text>
             </View>
           </View>

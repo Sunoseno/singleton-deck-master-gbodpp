@@ -142,16 +142,31 @@ export const useDecks = () => {
     try {
       console.log('Setting active deck:', deckId);
       
-      // FIXED: Simply change active status without moving cards
-      // Cards stay in their original decks, we just track which deck is "active"
+      // FIXED: Update deck order - move active deck to top, maintain order for others
       setDecks(prev => {
-        const updated = prev.map(deck => ({
-          ...deck,
-          isActive: deck.id === deckId,
-          updatedAt: deck.id === deckId ? new Date() : deck.updatedAt,
+        const activeDeck = prev.find(d => d.id === deckId);
+        const otherDecks = prev.filter(d => d.id !== deckId);
+        
+        if (!activeDeck) {
+          console.log('Deck not found:', deckId);
+          return prev;
+        }
+        
+        // Update active status and move to top
+        const updatedActiveDeck = { 
+          ...activeDeck, 
+          isActive: true, 
+          updatedAt: new Date() 
+        };
+        const updatedOtherDecks = otherDecks.map(deck => ({ 
+          ...deck, 
+          isActive: false 
         }));
-        console.log('Optimistic update: active deck updated in state');
-        return updated;
+        
+        // Return with active deck first, then others in original order
+        const result = [updatedActiveDeck, ...updatedOtherDecks];
+        console.log('Optimistic update: active deck moved to top, others maintain order');
+        return result;
       });
       
       // Save to storage - update all decks' active status
