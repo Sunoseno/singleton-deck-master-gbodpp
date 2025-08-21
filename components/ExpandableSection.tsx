@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
 import Icon from './Icon';
-import { colors } from '../styles/commonStyles';
+import { useTheme } from '../hooks/useTheme';
 
 interface ExpandableSectionProps {
   title: string;
@@ -11,28 +11,47 @@ interface ExpandableSectionProps {
   style?: any;
 }
 
-const ExpandableSection: React.FC<ExpandableSectionProps> = ({
-  title,
-  children,
-  defaultExpanded = false,
-  style,
-}) => {
+export default function ExpandableSection({ title, children, defaultExpanded = false, style }: ExpandableSectionProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const { colors } = useTheme();
+
+  const styles = StyleSheet.create({
+    container: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      backgroundColor: colors.cardBackground,
+      overflow: 'hidden',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 16,
+      backgroundColor: colors.cardBackground,
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      flex: 1,
+    },
+    content: {
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+  });
 
   return (
     <View style={[styles.container, style]}>
-      <TouchableOpacity
-        style={styles.header}
-        onPress={() => setIsExpanded(!isExpanded)}
-      >
+      <TouchableOpacity style={styles.header} onPress={() => setIsExpanded(!isExpanded)}>
         <Text style={styles.title}>{title}</Text>
-        <Icon
-          name={isExpanded ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color={colors.textSecondary}
+        <Icon 
+          name={isExpanded ? "chevron-up" : "chevron-down"} 
+          size={20} 
+          color={colors.textSecondary} 
         />
       </TouchableOpacity>
-      
       {isExpanded && (
         <View style={styles.content}>
           {children}
@@ -40,32 +59,4 @@ const ExpandableSection: React.FC<ExpandableSectionProps> = ({
       )}
     </View>
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.background,
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    backgroundColor: colors.backgroundAlt,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-  },
-  content: {
-    padding: 12,
-  },
-});
-
-export default ExpandableSection;
+}

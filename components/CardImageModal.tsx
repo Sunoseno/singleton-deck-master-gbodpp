@@ -1,8 +1,8 @@
 
-import React from 'react';
-import { Modal, View, Image, TouchableOpacity, Text, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import Icon from './Icon';
-import { colors } from '../styles/commonStyles';
+import { Modal, View, Image, TouchableOpacity, Text, StyleSheet, Dimensions, ScrollView } from 'react-native';
+import React from 'react';
+import { useTheme } from '../hooks/useTheme';
 
 interface CardImageModalProps {
   visible: boolean;
@@ -13,85 +13,135 @@ interface CardImageModalProps {
   deckInfo?: { currentDeck: string | null; otherDecks: string[] };
 }
 
-const CardImageModal: React.FC<CardImageModalProps> = ({
-  visible,
-  onClose,
-  imagePath,
-  cardName,
-  loading = false,
-  deckInfo,
-}) => {
+export default function CardImageModal({ visible, onClose, imagePath, cardName, loading, deckInfo }: CardImageModalProps) {
+  const { colors } = useTheme();
   const screenWidth = Dimensions.get('window').width;
   const screenHeight = Dimensions.get('window').height;
-  const imageSize = Math.min(screenWidth * 0.8, screenHeight * 0.6);
+
+  const styles = StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.9)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    container: {
+      width: screenWidth * 0.9,
+      maxHeight: screenHeight * 0.8,
+      backgroundColor: colors.cardBackground,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+      flex: 1,
+      marginRight: 16,
+    },
+    closeButton: {
+      padding: 4,
+    },
+    content: {
+      flex: 1,
+    },
+    imageContainer: {
+      alignItems: 'center',
+      padding: 16,
+    },
+    image: {
+      width: screenWidth * 0.7,
+      height: screenWidth * 0.7 * 1.4, // Magic card aspect ratio
+      borderRadius: 8,
+    },
+    loadingText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      padding: 40,
+    },
+    noImageText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      padding: 40,
+    },
+    deckInfo: {
+      padding: 16,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    deckInfoTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    currentDeck: {
+      fontSize: 14,
+      color: colors.success,
+      marginBottom: 4,
+    },
+    otherDeck: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 2,
+    },
+  });
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={[styles.container, { maxWidth: screenWidth * 0.9, maxHeight: screenHeight * 0.9 }]}>
+        <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.cardName} numberOfLines={2}>
+            <Text style={styles.title} numberOfLines={2}>
               {cardName}
             </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Icon name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
-
+          
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             <View style={styles.imageContainer}>
               {loading ? (
-                <View style={[styles.loadingContainer, { width: imageSize, height: imageSize * 1.4 }]}>
-                  <Text style={styles.loadingText}>Loading image...</Text>
-                </View>
+                <Text style={styles.loadingText}>Loading image...</Text>
               ) : imagePath ? (
-                <Image
-                  source={{ uri: imagePath }}
-                  style={[styles.cardImage, { width: imageSize, height: imageSize * 1.4 }]}
-                  resizeMode="contain"
-                />
+                <Image source={{ uri: imagePath }} style={styles.image} resizeMode="contain" />
               ) : (
-                <View style={[styles.noImageContainer, { width: imageSize, height: imageSize * 1.4 }]}>
-                  <Icon name="image-outline" size={48} color={colors.textSecondary} />
-                  <Text style={styles.noImageText}>No image available</Text>
-                </View>
+                <Text style={styles.noImageText}>No image available</Text>
               )}
             </View>
-
-            {/* NEW: Display deck information */}
-            {deckInfo && (
-              <View style={styles.deckInfoContainer}>
+            
+            {deckInfo && (deckInfo.currentDeck || deckInfo.otherDecks.length > 0) && (
+              <View style={styles.deckInfo}>
                 <Text style={styles.deckInfoTitle}>Deck Information</Text>
                 
                 {deckInfo.currentDeck && (
-                  <View style={styles.deckInfoItem}>
-                    <Text style={styles.deckInfoLabel}>Currently in:</Text>
-                    <Text style={[styles.deckInfoValue, { color: colors.success, fontWeight: '600' }]}>
-                      {deckInfo.currentDeck}
-                    </Text>
-                  </View>
+                  <Text style={styles.currentDeck}>
+                    Currently in: {deckInfo.currentDeck}
+                  </Text>
                 )}
                 
                 {deckInfo.otherDecks.length > 0 && (
-                  <View style={styles.deckInfoItem}>
-                    <Text style={styles.deckInfoLabel}>Also needed by:</Text>
+                  <>
+                    <Text style={[styles.deckInfoTitle, { fontSize: 14, marginTop: 8, marginBottom: 4 }]}>
+                      Also needed in:
+                    </Text>
                     {deckInfo.otherDecks.map((deckName, index) => (
-                      <Text key={index} style={[styles.deckInfoValue, { color: colors.warning }]}>
+                      <Text key={index} style={styles.otherDeck}>
                         • {deckName}
                       </Text>
                     ))}
-                  </View>
-                )}
-                
-                {!deckInfo.currentDeck && deckInfo.otherDecks.length === 0 && (
-                  <Text style={[styles.deckInfoValue, { color: colors.textSecondary, fontStyle: 'italic' }]}>
-                    This card is not in any deck
-                  </Text>
+                  </>
                 )}
               </View>
             )}
@@ -100,100 +150,4 @@ const CardImageModal: React.FC<CardImageModalProps> = ({
       </View>
     </Modal>
   );
-};
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  container: {
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    overflow: 'hidden',
-    maxHeight: '90%',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.backgroundAlt,
-  },
-  cardName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-    marginRight: 12,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  content: {
-    flex: 1,
-  },
-  imageContainer: {
-    alignItems: 'center',
-    padding: 16,
-  },
-  cardImage: {
-    borderRadius: 12,
-    backgroundColor: colors.backgroundAlt,
-  },
-  loadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 12,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginTop: 8,
-  },
-  noImageContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 12,
-  },
-  noImageText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginTop: 8,
-  },
-  deckInfoContainer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.backgroundAlt,
-  },
-  deckInfoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  deckInfoItem: {
-    marginBottom: 8,
-  },
-  deckInfoLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  deckInfoValue: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginLeft: 8,
-  },
-});
-
-export default CardImageModal;
+}

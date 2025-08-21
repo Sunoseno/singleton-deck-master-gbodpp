@@ -1,8 +1,9 @@
+
 import { Stack, useGlobalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, SafeAreaView } from 'react-native';
-import { commonStyles } from '../styles/commonStyles';
+import { useTheme } from '../hooks/useTheme';
 import { useEffect, useState } from 'react';
 import { setupErrorLogging } from '../utils/errorLogger';
 
@@ -12,6 +13,7 @@ export default function RootLayout() {
   const actualInsets = useSafeAreaInsets();
   const { emulate } = useGlobalSearchParams<{ emulate?: string }>();
   const [storedEmulate, setStoredEmulate] = useState<string | null>(null);
+  const { styles, isDark } = useTheme();
 
   useEffect(() => {
     // Set up global error logging
@@ -47,13 +49,13 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={[commonStyles.wrapper, {
+      <SafeAreaView style={[styles.wrapper, {
           paddingTop: insetsToUse.top,
           paddingBottom: insetsToUse.bottom,
           paddingLeft: insetsToUse.left,
           paddingRight: insetsToUse.right,
        }]}>
-        <StatusBar style="light" />
+        <StatusBar style={isDark ? "light" : "dark"} />
         <Stack
           screenOptions={{
             headerShown: false,

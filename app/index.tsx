@@ -3,7 +3,7 @@ import { Text, View, ScrollView, TouchableOpacity } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { useDecks } from '../hooks/useDecks';
-import { commonStyles, colors } from '../styles/commonStyles';
+import { useTheme } from '../hooks/useTheme';
 import Button from '../components/Button';
 import Icon from '../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +11,7 @@ import { scryfallService } from '../services/scryfallService';
 
 export default function DeckListScreen() {
   const { decks, setActiveDeck } = useDecks();
+  const { colors, styles } = useTheme();
 
   useEffect(() => {
     console.log('Decks updated:', decks.length);
@@ -48,10 +49,10 @@ export default function DeckListScreen() {
   };
 
   return (
-    <View style={commonStyles.container}>
-      <View style={[commonStyles.section, { paddingTop: 20 }]}>
-        <View style={commonStyles.row}>
-          <Text style={[commonStyles.title, { flex: 1 }]}>My Commander Decks</Text>
+    <View style={styles.container}>
+      <View style={[styles.section, { paddingTop: 20 }]}>
+        <View style={styles.row}>
+          <Text style={[styles.title, { flex: 1 }]}>My Commander Decks</Text>
           <TouchableOpacity
             onPress={handleSettingsPress}
             style={{
@@ -73,9 +74,9 @@ export default function DeckListScreen() {
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
         {sortedDecks.length === 0 ? (
-          <View style={[commonStyles.card, { alignItems: 'center', paddingVertical: 40 }]}>
+          <View style={[styles.card, { alignItems: 'center', paddingVertical: 40 }]}>
             <Icon name="library-outline" size={48} color={colors.textSecondary} />
-            <Text style={[commonStyles.text, { marginTop: 16, textAlign: 'center' }]}>
+            <Text style={[styles.text, { marginTop: 16, textAlign: 'center' }]}>
               No decks yet. Add your first Commander deck to get started!
             </Text>
           </View>
@@ -103,10 +104,10 @@ export default function DeckListScreen() {
                     minHeight: 80,
                   }}
                 >
-                  <View style={commonStyles.row}>
+                  <View style={styles.row}>
                     <View style={{ flex: 1 }}>
                       <Text style={[
-                        commonStyles.subtitle, 
+                        styles.subtitle, 
                         { 
                           marginBottom: 8,
                           color: '#FFFFFF',
@@ -122,7 +123,7 @@ export default function DeckListScreen() {
                       {/* Commander names - each on separate line, no labels */}
                       {commanderCard && (
                         <Text style={[
-                          commonStyles.textSecondary, 
+                          styles.textSecondary, 
                           { 
                             color: '#FFFFFF',
                             textShadowColor: 'rgba(0, 0, 0, 0.75)',
@@ -139,7 +140,7 @@ export default function DeckListScreen() {
                         <Text 
                           key={index}
                           style={[
-                            commonStyles.textSecondary, 
+                            styles.textSecondary, 
                             { 
                               color: '#FFFFFF',
                               textShadowColor: 'rgba(0, 0, 0, 0.75)',
@@ -155,7 +156,7 @@ export default function DeckListScreen() {
                       
                       {!commanderCard && partnerCommanderCards.length === 0 && (
                         <Text style={[
-                          commonStyles.textSecondary, 
+                          styles.textSecondary, 
                           { 
                             color: '#FFCCCC',
                             textShadowColor: 'rgba(0, 0, 0, 0.75)',
@@ -169,14 +170,14 @@ export default function DeckListScreen() {
                       
                       {deck.isActive && (
                         <View style={[
-                          commonStyles.badge, 
+                          styles.badge, 
                           { 
                             backgroundColor: 'rgba(255, 255, 255, 0.9)', 
                             marginTop: 8,
                             alignSelf: 'flex-start',
                           }
                         ]}>
-                          <Text style={[commonStyles.badgeText, { color: colors.success }]}>ACTIVE</Text>
+                          <Text style={[styles.badgeText, { color: colors.success }]}>ACTIVE</Text>
                         </View>
                       )}
                     </View>

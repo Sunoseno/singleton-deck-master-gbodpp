@@ -180,6 +180,53 @@ class ScryfallService {
     }
   }
 
+  public async clearImageCache(): Promise<void> {
+    try {
+      console.log('Clearing Scryfall image cache...');
+      const dirInfo = await FileSystem.getInfoAsync(this.CACHE_DIR);
+      
+      if (dirInfo.exists) {
+        await FileSystem.deleteAsync(this.CACHE_DIR);
+        console.log('Cache directory deleted');
+        
+        // Recreate the cache directory
+        await this.ensureCacheDirectory();
+        console.log('Cache directory recreated');
+      } else {
+        console.log('Cache directory does not exist');
+      }
+    } catch (error) {
+      console.log('Error clearing image cache:', error);
+      throw error;
+    }
+  }
+
+  public async getCacheSize(): Promise<{ fileCount: number; totalSize: number }> {
+    try {
+      const dirInfo = await FileSystem.getInfoAsync(this.CACHE_DIR);
+      
+      if (!dirInfo.exists) {
+        return { fileCount: 0, totalSize: 0 };
+      }
+
+      const files = await FileSystem.readDirectoryAsync(this.CACHE_DIR);
+      let totalSize = 0;
+      
+      for (const file of files) {
+        const filePath = `${this.CACHE_DIR}${file}`;
+        const fileInfo = await FileSystem.getInfoAsync(filePath);
+        if (fileInfo.exists && fileInfo.size) {
+          totalSize += fileInfo.size;
+        }
+      }
+
+      return { fileCount: files.length, totalSize };
+    } catch (error) {
+      console.log('Error getting cache size:', error);
+      return { fileCount: 0, totalSize: 0 };
+    }
+  }
+
   public calculateDeckColorIdentity(commanderCards: Array<{ colorIdentity?: string[] }>): string[] {
     const allColors = new Set<string>();
     

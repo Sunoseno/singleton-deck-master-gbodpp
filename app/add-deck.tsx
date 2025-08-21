@@ -1,112 +1,63 @@
 
 import { Text, View, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { useDecks } from '../hooks/useDecks';
-import { commonStyles, colors } from '../styles/commonStyles';
 import { Card } from '../types/deck';
-import Icon from '../components/Icon';
 import * as DocumentPicker from 'expo-document-picker';
+import { router } from 'expo-router';
+import { useTheme } from '../hooks/useTheme';
+import { useState } from 'react';
+import Icon from '../components/Icon';
+import { useDecks } from '../hooks/useDecks';
 
 export default function AddDeckScreen() {
   const { addDeck } = useDecks();
+  const { colors, styles } = useTheme();
   const [deckName, setDeckName] = useState('');
   const [cards, setCards] = useState<Card[]>([]);
   const [newCardName, setNewCardName] = useState('');
-  const [decklistText, setDecklistText] = useState('');
-  const [showImportSection, setShowImportSection] = useState(false);
 
   const addCard = () => {
-    if (!newCardName.trim()) {
-      Alert.alert('Error', 'Please enter a card name');
-      return;
-    }
-
-    // Check if card already exists
-    const existingCardIndex = cards.findIndex(card => 
-      card.name.toLowerCase() === newCardName.trim().toLowerCase()
-    );
-
-    if (existingCardIndex !== -1) {
-      // Increase quantity of existing card
-      setCards(prev => prev.map((card, index) => 
-        index === existingCardIndex 
+    if (!newCardName.trim()) return;
+    
+    const existingCard = cards.find(card => card.name.toLowerCase() === newCardName.toLowerCase());
+    if (existingCard) {
+      setCards(cards.map(card => 
+        card.id === existingCard.id 
           ? { ...card, quantity: card.quantity + 1 }
           : card
       ));
     } else {
-      // Add new card
       const newCard: Card = {
-        id: `${Date.now()}-${Math.random()}`,
+        id: Date.now().toString(),
         name: newCardName.trim(),
         quantity: 1,
         isCommander: false,
         isPartnerCommander: false,
       };
-      
-      // Sort cards alphabetically by name
-      setCards(prev => {
-        const updatedCards = [...prev, newCard];
-        return updatedCards.sort((a, b) => a.name.localeCompare(b.name));
-      });
+      setCards([...cards, newCard]);
     }
-
     setNewCardName('');
-    console.log('Added card:', newCardName.trim());
   };
 
   const updateCardQuantity = (cardId: string, change: number) => {
-    setCards(prev => prev.map(card => {
+    setCards(cards.map(card => {
       if (card.id === cardId) {
         const newQuantity = Math.max(0, card.quantity + change);
-        return newQuantity === 0 ? null : { ...card, quantity: newQuantity };
+        return { ...card, quantity: newQuantity };
       }
       return card;
-    }).filter(Boolean) as Card[]);
+    }).filter(card => card.quantity > 0));
   };
 
   const toggleCommander = (cardId: string) => {
-    const commanders = cards.filter(card => card.isCommander);
-    const partnerCommanders = cards.filter(card => card.isPartnerCommander);
-    const clickedCard = cards.find(card => card.id === cardId);
-    
-    if (!clickedCard) return;
-
-    console.log('Toggle commander clicked for:', clickedCard.name);
-    console.log('Current commanders:', commanders.length);
-    console.log('Current partner commanders:', partnerCommanders.length);
-
-    setCards(prev => prev.map(card => {
+    setCards(cards.map(card => {
       if (card.id === cardId) {
-        // If clicking on current commander (orange flag)
         if (card.isCommander) {
-          console.log('Clicking orange flag - turning red');
-          return { ...card, isCommander: false, isPartnerCommander: true };
-        }
-        
-        // If clicking on current partner commander (red flag)
-        if (card.isPartnerCommander) {
-          console.log('Clicking red flag - removing commander status');
-          return { ...card, isCommander: false, isPartnerCommander: false };
-        }
-        
-        // If no commander exists, make this the commander (orange)
-        if (commanders.length === 0 && partnerCommanders.length === 0) {
-          console.log('No commanders - making this commander (orange)');
+          return { ...card, isCommander: false };
+        } else {
           return { ...card, isCommander: true, isPartnerCommander: false };
         }
-        
-        // If there's a commander but no partner, make this partner (red)
-        if (commanders.length === 0 && partnerCommanders.length === 1) {
-          console.log('One partner exists - making this partner (red)');
-          return { ...card, isCommander: false, isPartnerCommander: true };
-        }
-        
-        // If there's only a commander (orange), make this partner (red)
-        if (commanders.length === 1 && partnerCommanders.length === 0) {
-          console.log('One commander exists - making this partner (red)');
-          return { ...card, isCommander: false, isPartnerCommander: true };
-        }
+      } else if (card.isCommander) {
+        return { ...card, isCommander: false };
       }
       return card;
     }));
@@ -115,302 +66,157 @@ export default function AddDeckScreen() {
   const parseDecklistText = (text: string): Card[] => {
     const lines = text.split('\n').filter(line => line.trim());
     const parsedCards: Card[] = [];
-    const cardMap = new Map<string, number>();
     
-    console.log('Parsing decklist with', lines.length, 'lines');
-    
-    for (const line of lines) {
+    lines.forEach(line => {
       const trimmedLine = line.trim();
-      if (!trimmedLine) continue;
+      if (!trimmedLine) return;
       
-      // Enhanced regex to handle both formats:
-      // Format 1: "1 Card Name"
-      // Format 2: "1 Card Name (Edition) Set#"
-      const match = trimmedLine.match(/^(\d+)\s+([^(]+?)(?:\s*\([^)]*\))?(?:\s+\S+)?$/);
+      // Match patterns like "1 Card Name" or "1x Card Name" or "Card Name"
+      const match = trimmedLine.match(/^(\d+)x?\s+(.+?)(?:\s*\([^)]+\))?(?:\s+\d+)?$/);
       
       if (match) {
-        const quantity = parseInt(match[1], 10);
+        const quantity = parseInt(match[1]);
         const cardName = match[2].trim();
         
-        console.log(`Parsed: ${quantity}x ${cardName}`);
-        
-        // Accumulate quantities for duplicate card names
-        const existingQuantity = cardMap.get(cardName) || 0;
-        cardMap.set(cardName, existingQuantity + quantity);
+        if (cardName) {
+          parsedCards.push({
+            id: Date.now().toString() + Math.random(),
+            name: cardName,
+            quantity: quantity,
+            isCommander: false,
+            isPartnerCommander: false,
+          });
+        }
       } else {
-        console.log('Could not parse line:', trimmedLine);
+        // If no quantity specified, assume 1
+        const cardName = trimmedLine.replace(/\s*\([^)]+\).*$/, '').trim();
+        if (cardName) {
+          parsedCards.push({
+            id: Date.now().toString() + Math.random(),
+            name: cardName,
+            quantity: 1,
+            isCommander: false,
+            isPartnerCommander: false,
+          });
+        }
       }
-    }
-    
-    // Convert map to cards array and sort alphabetically
-    cardMap.forEach((quantity, cardName) => {
-      const card: Card = {
-        id: `${Date.now()}-${Math.random()}`,
-        name: cardName,
-        quantity: quantity,
-        isCommander: false,
-        isPartnerCommander: false,
-      };
-      parsedCards.push(card);
     });
     
-    return parsedCards.sort((a, b) => a.name.localeCompare(b.name));
+    return parsedCards;
   };
 
   const handleImportDecklist = () => {
-    if (!decklistText.trim()) {
-      Alert.alert('Error', 'Please paste your decklist text');
-      return;
-    }
-
-    try {
-      const importedCards = parseDecklistText(decklistText);
-      
-      if (importedCards.length === 0) {
-        Alert.alert('Error', 'No cards could be parsed from the text. Please check the format.');
-        return;
-      }
-
-      // Merge imported cards with existing cards
-      const mergedCards = [...cards];
-      
-      importedCards.forEach(importedCard => {
-        const existingIndex = mergedCards.findIndex(card => 
-          card.name.toLowerCase() === importedCard.name.toLowerCase()
-        );
-        
-        if (existingIndex !== -1) {
-          mergedCards[existingIndex].quantity += importedCard.quantity;
-        } else {
-          mergedCards.push(importedCard);
+    Alert.prompt(
+      'Import Decklist',
+      'Paste your decklist here (one card per line):',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          onPress: (text) => {
+            if (text) {
+              const importedCards = parseDecklistText(text);
+              setCards([...cards, ...importedCards]);
+            }
+          }
         }
-      });
-
-      // Sort the merged cards alphabetically
-      setCards(mergedCards.sort((a, b) => a.name.localeCompare(b.name)));
-      setDecklistText('');
-      setShowImportSection(false);
-      
-      console.log(`Imported ${importedCards.length} unique cards`);
-      Alert.alert('Success', `Imported ${importedCards.length} unique cards to your deck!`);
-    } catch (error) {
-      console.log('Error importing decklist:', error);
-      Alert.alert('Error', 'Failed to import decklist. Please check the format.');
-    }
+      ],
+      'plain-text'
+    );
   };
 
   const handleUploadFile = async () => {
     try {
-      console.log('Opening document picker for decklist file');
-      
       const result = await DocumentPicker.getDocumentAsync({
         type: 'text/plain',
         copyToCacheDirectory: true,
       });
 
-      if (result.canceled) {
-        console.log('File picker was canceled');
-        return;
-      }
-
-      if (result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        console.log('Selected file:', file.name, 'Size:', file.size);
-
-        // Read the file content
-        const response = await fetch(file.uri);
-        const fileContent = await response.text();
-        
-        console.log('File content length:', fileContent.length);
-        
-        if (!fileContent.trim()) {
-          Alert.alert('Error', 'The selected file appears to be empty.');
-          return;
-        }
-
-        // Parse the file content
-        const importedCards = parseDecklistText(fileContent);
-        
-        if (importedCards.length === 0) {
-          Alert.alert('Error', 'No cards could be parsed from the file. Please check the format.');
-          return;
-        }
-
-        // Merge imported cards with existing cards
-        const mergedCards = [...cards];
-        
-        importedCards.forEach(importedCard => {
-          const existingIndex = mergedCards.findIndex(card => 
-            card.name.toLowerCase() === importedCard.name.toLowerCase()
-          );
-          
-          if (existingIndex !== -1) {
-            mergedCards[existingIndex].quantity += importedCard.quantity;
-          } else {
-            mergedCards.push(importedCard);
-          }
-        });
-
-        // Sort the merged cards alphabetically
-        setCards(mergedCards.sort((a, b) => a.name.localeCompare(b.name)));
-        
-        console.log(`Imported ${importedCards.length} unique cards from file`);
-        Alert.alert('Success', `Imported ${importedCards.length} unique cards from ${file.name}!`);
+      if (!result.canceled && result.assets[0]) {
+        const response = await fetch(result.assets[0].uri);
+        const text = await response.text();
+        const importedCards = parseDecklistText(text);
+        setCards([...cards, ...importedCards]);
+        Alert.alert('Success', `Imported ${importedCards.length} cards from file`);
       }
     } catch (error) {
       console.log('Error uploading file:', error);
-      Alert.alert('Error', 'Failed to upload and parse the file. Please try again.');
+      Alert.alert('Error', 'Failed to read file');
     }
   };
 
   const clearAllCards = () => {
     Alert.alert(
       'Clear All Cards',
-      'Are you sure you want to remove all cards from this deck?',
+      'Are you sure you want to remove all cards?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Clear All', 
-          style: 'destructive',
-          onPress: () => {
-            setCards([]);
-            console.log('Cleared all cards');
-          }
-        },
+        { text: 'Clear', style: 'destructive', onPress: () => setCards([]) }
       ]
     );
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!deckName.trim()) {
       Alert.alert('Error', 'Please enter a deck name');
       return;
     }
-
+    
     if (cards.length === 0) {
-      Alert.alert('Error', 'Please add at least one card to the deck');
+      Alert.alert('Error', 'Please add at least one card');
       return;
     }
-
-    const totalCards = cards.reduce((sum, card) => sum + card.quantity, 0);
-    const commanderCards = cards.filter(card => card.isCommander);
-    const partnerCommanderCards = cards.filter(card => card.isPartnerCommander);
-
-    if (commanderCards.length === 0 && partnerCommanderCards.length === 0) {
-      Alert.alert(
-        'No Commander Selected',
-        'MTG Commander decks need a commander. Do you want to save anyway?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Save Anyway', onPress: saveDeck },
-        ]
-      );
-      return;
-    }
-
-    if (commanderCards.length > 1 || partnerCommanderCards.length > 2) {
-      Alert.alert('Error', 'A deck can only have one commander and up to one partner commander');
-      return;
-    }
-
-    if (totalCards < 100) {
-      Alert.alert(
-        'Incomplete Deck',
-        `Your deck has ${totalCards} cards. MTG Commander decks need at least 100 cards (including commander). Do you want to save anyway?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Save Anyway', onPress: saveDeck },
-        ]
-      );
-      return;
-    }
-
+    
     saveDeck();
   };
 
   const saveDeck = async () => {
     try {
-      console.log('Starting deck save process for:', deckName);
-      
-      // FIXED: Remove isActive from here since it's now handled in addDeck
-      const newDeck = await addDeck({
-        name: deckName.trim(),
-        cards,
-        isActive: false, // This will be overridden in addDeck to true
-      });
-
-      console.log('Deck saved successfully with ID:', newDeck.id);
-      console.log('Navigating back to main screen');
-      
-      // Use replace instead of back to ensure proper navigation
-      router.replace('/');
+      await addDeck(deckName.trim(), cards);
+      router.back();
     } catch (error) {
       console.log('Error saving deck:', error);
-      Alert.alert('Error', 'Failed to save deck. Please try again.');
+      Alert.alert('Error', 'Failed to save deck');
     }
   };
 
-  const totalCards = cards.reduce((sum, card) => sum + card.quantity, 0);
-  const commanderCard = cards.find(card => card.isCommander);
-  const partnerCommanderCards = cards.filter(card => card.isPartnerCommander);
-  const commanders = cards.filter(card => card.isCommander);
-  const partners = cards.filter(card => card.isPartnerCommander);
-
-  const shouldShowFlag = (card: Card) => {
-    // Always show flag for commanders and partner commanders
-    if (card.isCommander || card.isPartnerCommander) return true;
-    
-    // Show flag for other cards only if no commanders exist or if there's only one partner commander
-    return commanders.length === 0 && partners.length <= 1;
+  const shouldShowFlag = (card: Card): boolean => {
+    return card.isCommander || card.isPartnerCommander;
   };
 
-  const getFlagIcon = (card: Card) => {
-    if (card.isCommander) return "flag";
-    if (card.isPartnerCommander) return "flag";
-    return "flag-outline";
+  const getFlagIcon = (card: Card): string => {
+    if (card.isCommander) return 'star';
+    if (card.isPartnerCommander) return 'people';
+    return '';
   };
 
-  // FIXED: Use distinct colors for different card types
-  const getFlagColor = (card: Card) => {
-    if (card.isCommander) return colors.commander; // Orange
-    if (card.isPartnerCommander) return colors.partnerCommander; // Red
-    return colors.textSecondary;
+  const getFlagColor = (card: Card): string => {
+    if (card.isCommander) return colors.commander;
+    if (card.isPartnerCommander) return colors.partnerCommander;
+    return colors.text;
   };
 
   return (
-    <View style={commonStyles.container}>
-      <View style={[commonStyles.section, { paddingTop: 20 }]}>
-        <View style={commonStyles.row}>
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={[styles.section, { paddingTop: 20 }]}>
+        <View style={styles.row}>
           <TouchableOpacity
-            onPress={() => {
-              console.log('Navigating back from add deck');
-              router.back();
-            }}
-            style={{ padding: 8, marginLeft: -8 }}
+            onPress={() => router.back()}
+            style={{ marginRight: 16 }}
           >
             <Icon name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[commonStyles.title, { fontSize: 20 }]}>Add New Deck</Text>
-          </View>
-          
-          <TouchableOpacity
-            onPress={handleSave}
-            style={{ padding: 8 }}
-          >
-            <Icon name="checkmark" size={24} color={colors.primary} />
-          </TouchableOpacity>
+          <Text style={styles.title}>Add New Deck</Text>
         </View>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
-        <View style={commonStyles.card}>
-          <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>Deck Information</Text>
-          
-          <Text style={[commonStyles.text, { marginBottom: 8 }]}>Deck Name</Text>
+        {/* Deck Name */}
+        <View style={[styles.card, { marginBottom: 20 }]}>
+          <Text style={[styles.subtitle, { marginBottom: 12 }]}>Deck Name</Text>
           <TextInput
-            style={commonStyles.input}
+            style={[styles.input, { color: colors.text }]}
             value={deckName}
             onChangeText={setDeckName}
             placeholder="Enter deck name"
@@ -418,257 +224,130 @@ export default function AddDeckScreen() {
           />
         </View>
 
-        <View style={commonStyles.card}>
-          <View style={commonStyles.row}>
-            <Text style={[commonStyles.subtitle, { flex: 1 }]}>
-              Import Decklist
-            </Text>
+        {/* Add Card */}
+        <View style={[styles.card, { marginBottom: 20 }]}>
+          <Text style={[styles.subtitle, { marginBottom: 12 }]}>Add Cards</Text>
+          <View style={styles.row}>
+            <TextInput
+              style={[styles.input, { flex: 1, marginRight: 12, color: colors.text }]}
+              value={newCardName}
+              onChangeText={setNewCardName}
+              placeholder="Card name"
+              placeholderTextColor={colors.textSecondary}
+              onSubmitEditing={addCard}
+            />
             <TouchableOpacity
-              onPress={() => setShowImportSection(!showImportSection)}
-              style={{ padding: 4 }}
+              style={[styles.button, { paddingHorizontal: 16 }]}
+              onPress={addCard}
             >
-              <Icon 
-                name={showImportSection ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color={colors.primary} 
-              />
+              <Icon name="add" size={20} color={colors.background} />
             </TouchableOpacity>
           </View>
-          
-          {showImportSection && (
-            <View style={{ marginTop: 12 }}>
-              <Text style={[commonStyles.text, { marginBottom: 8 }]}>
-                Paste Decklist Text
-              </Text>
-              <Text style={[commonStyles.textSecondary, { fontSize: 12, marginBottom: 8 }]}>
-                Supports both formats:{'\n'}
-                • "1 Arena of Glory"{'\n'}
-                • "1 Arena of Glory (OTJ) 251"
-              </Text>
-              <TextInput
-                style={[commonStyles.input, { height: 120, textAlignVertical: 'top' }]}
-                value={decklistText}
-                onChangeText={setDecklistText}
-                placeholder="1 Arena of Glory&#10;1 Battle Hymn (OTJ) 123&#10;1 Beetleback Chief&#10;..."
-                placeholderTextColor={colors.textSecondary}
-                multiline
-              />
-              
-              <View style={commonStyles.row}>
-                <TouchableOpacity
-                  onPress={handleImportDecklist}
-                  style={{
-                    backgroundColor: colors.primary,
-                    paddingVertical: 12,
-                    paddingHorizontal: 24,
-                    borderRadius: 8,
-                    alignItems: 'center',
-                    flex: 1,
-                    marginRight: 8,
-                  }}
-                >
-                  <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600' }}>
-                    Import Text
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  onPress={() => setDecklistText('')}
-                  style={{
-                    backgroundColor: colors.border,
-                    paddingVertical: 12,
-                    paddingHorizontal: 16,
-                    borderRadius: 8,
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text style={{ color: colors.text, fontSize: 16 }}>
-                    Clear
-                  </Text>
-                </TouchableOpacity>
-              </View>
 
-              <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-                <TouchableOpacity
-                  onPress={handleUploadFile}
-                  style={{
-                    backgroundColor: colors.secondary,
-                    paddingVertical: 12,
-                    paddingHorizontal: 24,
-                    borderRadius: 8,
-                    alignItems: 'center',
-                    flexDirection: 'row',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Icon name="document-text" size={20} color={colors.background} style={{ marginRight: 8 }} />
-                  <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600' }}>
-                    Upload Text File
-                  </Text>
-                </TouchableOpacity>
-                <Text style={[commonStyles.textSecondary, { fontSize: 12, textAlign: 'center', marginTop: 4 }]}>
-                  Select a .txt file with your decklist
-                </Text>
-              </View>
-            </View>
-          )}
+          {/* Import Options */}
+          <View style={[styles.row, { marginTop: 16, justifyContent: 'space-between' }]}>
+            <TouchableOpacity
+              style={[styles.button, { flex: 1, marginRight: 8, backgroundColor: colors.secondary }]}
+              onPress={handleImportDecklist}
+            >
+              <Text style={styles.buttonText}>Import Text</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, { flex: 1, marginLeft: 8, backgroundColor: colors.secondary }]}
+              onPress={handleUploadFile}
+            >
+              <Text style={styles.buttonText}>Upload File</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={commonStyles.card}>
-          <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>
-            Add Card ({totalCards} cards)
-          </Text>
-          
-          <Text style={[commonStyles.text, { marginBottom: 8 }]}>Card Name</Text>
-          <TextInput
-            style={commonStyles.input}
-            value={newCardName}
-            onChangeText={setNewCardName}
-            placeholder="Enter card name"
-            placeholderTextColor={colors.textSecondary}
-            onSubmitEditing={addCard}
-            returnKeyType="done"
-          />
-          
-          <TouchableOpacity
-            onPress={addCard}
-            style={{
-              backgroundColor: colors.primary,
-              paddingVertical: 12,
-              paddingHorizontal: 24,
-              borderRadius: 8,
-              alignItems: 'center',
-              marginTop: 16,
-            }}
-          >
-            <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600' }}>
-              Add Card
-            </Text>
-          </TouchableOpacity>
-        </View>
-
+        {/* Cards List */}
         {cards.length > 0 && (
-          <View style={commonStyles.card}>
-            <View style={commonStyles.row}>
-              <Text style={[commonStyles.subtitle, { flex: 1 }]}>
-                Cards in Deck ({totalCards})
-                {commanderCard && (
-                  <Text style={[commonStyles.textSecondary, { fontSize: 14 }]}>
-                    {' '}• Commander: {commanderCard.name}
-                  </Text>
-                )}
-                {partnerCommanderCards.length > 0 && (
-                  <Text style={[commonStyles.textSecondary, { fontSize: 14 }]}>
-                    {' '}• Partners: {partnerCommanderCards.map(p => p.name).join(', ')}
-                  </Text>
-                )}
+          <View style={[styles.card, { marginBottom: 20 }]}>
+            <View style={[styles.row, { marginBottom: 16 }]}>
+              <Text style={[styles.subtitle, { flex: 1 }]}>
+                Cards ({cards.reduce((sum, card) => sum + card.quantity, 0)})
               </Text>
-              <TouchableOpacity
-                onPress={clearAllCards}
-                style={{ padding: 4 }}
-              >
-                <Icon name="trash" size={20} color={colors.error} />
+              <TouchableOpacity onPress={clearAllCards}>
+                <Icon name="trash-outline" size={20} color={colors.error} />
               </TouchableOpacity>
             </View>
-            
-            {cards.map((card, index) => (
-              <View
-                key={card.id}
-                style={{
-                  paddingVertical: 12,
-                  borderBottomWidth: index < cards.length - 1 ? 1 : 0,
-                  borderBottomColor: colors.border,
-                  backgroundColor: card.isCommander 
-                    ? colors.commander + '20' 
-                    : card.isPartnerCommander 
-                    ? colors.partnerCommander + '20' 
-                    : 'transparent',
-                  paddingHorizontal: (card.isCommander || card.isPartnerCommander) ? 8 : 0,
-                  borderRadius: (card.isCommander || card.isPartnerCommander) ? 8 : 0,
-                  marginVertical: (card.isCommander || card.isPartnerCommander) ? 2 : 0,
-                }}
-              >
-                <View style={commonStyles.row}>
-                  <View style={{ flex: 1 }}>
-                    <View style={[commonStyles.row, { alignItems: 'center' }]}>
-                      {shouldShowFlag(card) && (
-                        <TouchableOpacity
-                          onPress={() => toggleCommander(card.id)}
-                          style={{ padding: 4, marginRight: 8 }}
-                        >
-                          <Icon 
-                            name={getFlagIcon(card)} 
-                            size={18} 
-                            color={getFlagColor(card)} 
-                          />
-                        </TouchableOpacity>
-                      )}
-                      <Text 
-                        style={[
-                          commonStyles.text, 
-                          { 
-                            flex: 1,
-                            flexWrap: 'wrap',
-                            lineHeight: 20,
-                          }
-                        ]}
-                        numberOfLines={2}
-                      >
-                        {card.name}
-                      </Text>
-                    </View>
-                    {card.isCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.commander, marginLeft: 30 }]}>
-                        Commander
-                      </Text>
-                    )}
-                    {card.isPartnerCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.partnerCommander, marginLeft: 30 }]}>
-                        Partner Commander
-                      </Text>
+
+            {cards.map((card) => (
+              <View key={card.id} style={[styles.row, { marginBottom: 12, paddingVertical: 8 }]}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.row}>
+                    <Text style={[styles.text, { flex: 1 }]}>{card.name}</Text>
+                    {shouldShowFlag(card) && (
+                      <Icon 
+                        name={getFlagIcon(card)} 
+                        size={16} 
+                        color={getFlagColor(card)} 
+                        style={{ marginLeft: 8 }}
+                      />
                     )}
                   </View>
+                </View>
+                
+                <View style={styles.row}>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: colors.cardBackground,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 4,
+                      padding: 4,
+                      marginRight: 8,
+                    }}
+                    onPress={() => toggleCommander(card.id)}
+                  >
+                    <Icon name="star-outline" size={16} color={colors.text} />
+                  </TouchableOpacity>
                   
-                  <View style={commonStyles.row}>
-                    <TouchableOpacity
-                      onPress={() => updateCardQuantity(card.id, -1)}
-                      style={{
-                        backgroundColor: colors.border,
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 8,
-                      }}
-                    >
-                      <Icon name="remove" size={16} color={colors.text} />
-                    </TouchableOpacity>
-                    
-                    <Text style={[commonStyles.text, { minWidth: 24, textAlign: 'center' }]}>
-                      {card.quantity}
-                    </Text>
-                    
-                    <TouchableOpacity
-                      onPress={() => updateCardQuantity(card.id, 1)}
-                      style={{
-                        backgroundColor: colors.primary,
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginLeft: 8,
-                      }}
-                    >
-                      <Icon name="add" size={16} color={colors.background} />
-                    </TouchableOpacity>
-                  </View>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: colors.cardBackground,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 4,
+                      padding: 4,
+                      marginRight: 8,
+                    }}
+                    onPress={() => updateCardQuantity(card.id, -1)}
+                  >
+                    <Icon name="remove" size={16} color={colors.text} />
+                  </TouchableOpacity>
+                  
+                  <Text style={[styles.text, { minWidth: 30, textAlign: 'center' }]}>
+                    {card.quantity}
+                  </Text>
+                  
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: colors.cardBackground,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 4,
+                      padding: 4,
+                      marginLeft: 8,
+                    }}
+                    onPress={() => updateCardQuantity(card.id, 1)}
+                  >
+                    <Icon name="add" size={16} color={colors.text} />
+                  </TouchableOpacity>
                 </View>
               </View>
             ))}
           </View>
         )}
+
+        {/* Save Button */}
+        <TouchableOpacity
+          style={[styles.button, { marginBottom: 20 }]}
+          onPress={handleSave}
+        >
+          <Text style={styles.buttonText}>Save Deck</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
