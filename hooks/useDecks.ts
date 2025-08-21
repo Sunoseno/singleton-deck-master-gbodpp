@@ -3,12 +3,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { Deck, Card, CardConflict } from '../types/deck';
 import { deckStorage } from '../data/deckStorage';
 import { scryfallService } from '../services/scryfallService';
-import { useSettings } from './useSettings';
 
 export const useDecks = () => {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [loading, setLoading] = useState(true);
-  const { settings } = useSettings();
 
   const loadDecks = useCallback(async () => {
     setLoading(true);
@@ -27,57 +25,35 @@ export const useDecks = () => {
     loadDecks();
   }, [loadDecks]);
 
-  const addDeck = useCallback(async (deck: Omit<Deck, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addDeck = useCallback(async (deckName: string, cards: Card[]) => {
     try {
-      console.log('Adding deck:', deck.name);
+      console.log('Adding deck:', deckName);
       
       // Calculate color identity for the deck
-      const commanders = deck.cards.filter(card => card.isCommander || card.isPartnerCommander);
+      const commanders = cards.filter(card => card.isCommander || card.isPartnerCommander);
       const colorIdentity = scryfallService.calculateDeckColorIdentity(commanders);
       
-      // Create the new deck object with temporary ID for optimistic update
-      // Set new deck as active by default
-      const tempDeck: Deck = {
-        ...deck,
-        id: `temp-${Date.now()}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      // Create the new deck object
+      const newDeckData = {
+        name: deckName,
+        cards,
+        commander: commanders.filter(card => card.isCommander).map(card => card.name),
+        partnerCommander: commanders.filter(card => card.isPartnerCommander).map(card => card.name),
         colorIdentity,
-        isActive: true,
+        isActive: false,
       };
       
-      // Optimistic update - add deck to state immediately and deactivate others
-      setDecks(prev => {
-        console.log('Optimistic update: adding deck to state and setting as active');
-        const updatedDecks = prev.map(d => ({ ...d, isActive: false })); // Deactivate all existing decks
-        return [...updatedDecks, tempDeck];
-      });
-      
       // Save to storage
-      const newDeck = await deckStorage.addDeck({ ...deck, colorIdentity, isActive: true });
+      const newDeck = await deckStorage.addDeck(newDeckData);
       console.log('Deck added to storage with ID:', newDeck.id);
       
-      // Deactivate all other decks in storage
-      const allDecks = await deckStorage.getDecks();
-      for (const existingDeck of allDecks) {
-        if (existingDeck.id !== newDeck.id && existingDeck.isActive) {
-          await deckStorage.updateDeck(existingDeck.id, { isActive: false });
-        }
-      }
-      
-      // Replace the temporary deck with the real one
-      setDecks(prev => {
-        const updated = prev.map(d => d.id === tempDeck.id ? newDeck : { ...d, isActive: false });
-        console.log('Replaced temporary deck with real deck and deactivated others');
-        return updated;
-      });
+      // Update state
+      setDecks(prev => [...prev, newDeck]);
       
       console.log('Deck addition completed successfully');
       return newDeck;
     } catch (error) {
       console.log('Error adding deck:', error);
-      // Rollback optimistic update on error
-      setDecks(prev => prev.filter(d => !d.id.startsWith('temp-')));
       throw error;
     }
   }, []);
@@ -91,6 +67,8 @@ export const useDecks = () => {
       if (updates.cards) {
         const commanders = updates.cards.filter(card => card.isCommander || card.isPartnerCommander);
         finalUpdates.colorIdentity = scryfallService.calculateDeckColorIdentity(commanders);
+        finalUpdates.commander = commanders.filter(card => card.isCommander).map(card => card.name);
+        finalUpdates.partnerCommander = commanders.filter(card => card.isPartnerCommander).map(card => card.name);
       }
       
       // Optimistic update
@@ -119,9 +97,6 @@ export const useDecks = () => {
     try {
       console.log('Deleting deck:', deckId);
       
-      // Store the deck for potential rollback
-      const deckToDelete = decks.find(d => d.id === deckId);
-      
       // Optimistic update - remove deck from state immediately
       setDecks(prev => {
         const updated = prev.filter(deck => deck.id !== deckId);
@@ -138,7 +113,7 @@ export const useDecks = () => {
       await loadDecks();
       throw error;
     }
-  }, [decks, loadDecks]);
+  }, [loadDecks]);
 
   const setActiveDeck = useCallback(async (deckId: string) => {
     try {
@@ -300,13 +275,12 @@ export const useDecks = () => {
   const enrichCardWithScryfall = useCallback(async (cardName: string): Promise<{ card: any; imagePath: string | null } | null> => {
     try {
       console.log('Enriching card with Scryfall data:', cardName);
-      const language = settings?.translateCardNames ? settings.language : 'en';
-      return await scryfallService.getCardWithImage(cardName, language);
+      return await scryfallService.getCardWithImage(cardName);
     } catch (error) {
       console.log('Error enriching card with Scryfall:', error);
       return null;
     }
-  }, [settings]);
+  }, []);
 
   const activeDeck = decks.find(d => d.isActive);
 

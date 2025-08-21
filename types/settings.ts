@@ -1,13 +1,11 @@
 
 export interface AppSettings {
   language: 'en' | 'de' | 'fr' | 'it' | 'es';
-  translateCardNames: boolean;
   darkMode: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   language: 'en',
-  translateCardNames: false,
   darkMode: false,
 };
 

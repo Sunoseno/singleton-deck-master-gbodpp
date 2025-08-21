@@ -3,7 +3,9 @@ import { Text, View, ScrollView, TouchableOpacity, TextInput, Alert } from 'reac
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { useDecks } from '../../hooks/useDecks';
-import { commonStyles, colors } from '../../styles/commonStyles';
+import { useSettings } from '../../hooks/useSettings';
+import { useTheme } from '../../hooks/useTheme';
+import { useTranslations } from '../../utils/localization';
 import { Card } from '../../types/deck';
 import Icon from '../../components/Icon';
 import * as DocumentPicker from 'expo-document-picker';
@@ -11,12 +13,15 @@ import * as DocumentPicker from 'expo-document-picker';
 export default function EditDeckScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { decks, updateDeck } = useDecks();
+  const { settings } = useSettings();
+  const { colors, styles } = useTheme();
   const [deckName, setDeckName] = useState('');
   const [cards, setCards] = useState<Card[]>([]);
   const [newCardName, setNewCardName] = useState('');
   const [decklistText, setDecklistText] = useState('');
   const [showImportSection, setShowImportSection] = useState(false);
 
+  const t = useTranslations(settings?.language || 'en');
   const deck = decks.find(d => d.id === id);
 
   useEffect(() => {
@@ -29,7 +34,7 @@ export default function EditDeckScreen() {
 
   const addCard = () => {
     if (!newCardName.trim()) {
-      Alert.alert('Error', 'Please enter a card name');
+      Alert.alert(t.error, t.enterDeckNameError);
       return;
     }
 
@@ -170,7 +175,7 @@ export default function EditDeckScreen() {
 
   const handleImportDecklist = () => {
     if (!decklistText.trim()) {
-      Alert.alert('Error', 'Please paste your decklist text');
+      Alert.alert(t.error, t.pasteDecklist);
       return;
     }
 
@@ -178,7 +183,7 @@ export default function EditDeckScreen() {
       const importedCards = parseDecklistText(decklistText);
       
       if (importedCards.length === 0) {
-        Alert.alert('Error', 'No cards could be parsed from the text. Please check the format.');
+        Alert.alert(t.error, 'No cards could be parsed from the text. Please check the format.');
         return;
       }
 
@@ -203,10 +208,10 @@ export default function EditDeckScreen() {
       setShowImportSection(false);
       
       console.log(`Imported ${importedCards.length} unique cards`);
-      Alert.alert('Success', `Imported ${importedCards.length} unique cards to your deck!`);
+      Alert.alert(t.success, `${t.imported} ${importedCards.length} unique ${t.cards.toLowerCase()}!`);
     } catch (error) {
       console.log('Error importing decklist:', error);
-      Alert.alert('Error', 'Failed to import decklist. Please check the format.');
+      Alert.alert(t.error, 'Failed to import decklist. Please check the format.');
     }
   };
 
@@ -235,7 +240,7 @@ export default function EditDeckScreen() {
         console.log('File content length:', fileContent.length);
         
         if (!fileContent.trim()) {
-          Alert.alert('Error', 'The selected file appears to be empty.');
+          Alert.alert(t.error, 'The selected file appears to be empty.');
           return;
         }
 
@@ -243,7 +248,7 @@ export default function EditDeckScreen() {
         const importedCards = parseDecklistText(fileContent);
         
         if (importedCards.length === 0) {
-          Alert.alert('Error', 'No cards could be parsed from the file. Please check the format.');
+          Alert.alert(t.error, 'No cards could be parsed from the file. Please check the format.');
           return;
         }
 
@@ -266,27 +271,27 @@ export default function EditDeckScreen() {
         setCards(mergedCards.sort((a, b) => a.name.localeCompare(b.name)));
         
         console.log(`Imported ${importedCards.length} unique cards from file`);
-        Alert.alert('Success', `Imported ${importedCards.length} unique cards from ${file.name}!`);
+        Alert.alert(t.success, `${t.imported} ${importedCards.length} unique ${t.cards.toLowerCase()} from ${file.name}!`);
       }
     } catch (error) {
       console.log('Error uploading file:', error);
-      Alert.alert('Error', 'Failed to upload and parse the file. Please try again.');
+      Alert.alert(t.error, t.failedToRead);
     }
   };
 
   const handleSave = async () => {
     if (!deck) {
-      Alert.alert('Error', 'Deck not found');
+      Alert.alert(t.error, 'Deck not found');
       return;
     }
 
     if (!deckName.trim()) {
-      Alert.alert('Error', 'Please enter a deck name');
+      Alert.alert(t.error, t.enterDeckNameError);
       return;
     }
 
     if (cards.length === 0) {
-      Alert.alert('Error', 'Please add at least one card to the deck');
+      Alert.alert(t.error, t.addCardError);
       return;
     }
 
@@ -295,7 +300,7 @@ export default function EditDeckScreen() {
     const partnerCommanderCards = cards.filter(card => card.isPartnerCommander);
 
     if (commanderCards.length > 1 || partnerCommanderCards.length > 2) {
-      Alert.alert('Error', 'A deck can only have one commander and up to one partner commander');
+      Alert.alert(t.error, 'A deck can only have one commander and up to one partner commander');
       return;
     }
 
@@ -313,14 +318,14 @@ export default function EditDeckScreen() {
       router.back();
     } catch (error) {
       console.log('Error updating deck:', error);
-      Alert.alert('Error', 'Failed to save deck changes. Please try again.');
+      Alert.alert(t.error, t.saveError);
     }
   };
 
   if (!deck) {
     return (
-      <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={commonStyles.text}>Deck not found</Text>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.text}>Deck not found</Text>
       </View>
     );
   }
@@ -345,7 +350,6 @@ export default function EditDeckScreen() {
     return "flag-outline";
   };
 
-  // FIXED: Use distinct colors for different card types
   const getFlagColor = (card: Card) => {
     if (card.isCommander) return colors.commander; // Orange
     if (card.isPartnerCommander) return colors.partnerCommander; // Red
@@ -353,9 +357,9 @@ export default function EditDeckScreen() {
   };
 
   return (
-    <View style={commonStyles.container}>
-      <View style={[commonStyles.section, { paddingTop: 20 }]}>
-        <View style={commonStyles.row}>
+    <View style={styles.container}>
+      <View style={[styles.section, { paddingTop: 20 }]}>
+        <View style={styles.row}>
           <TouchableOpacity
             onPress={() => {
               console.log('Navigating back from edit deck');
@@ -367,7 +371,7 @@ export default function EditDeckScreen() {
           </TouchableOpacity>
           
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[commonStyles.title, { fontSize: 20 }]}>Edit Deck</Text>
+            <Text style={[styles.title, { fontSize: 20 }]}>{t.editDeck}</Text>
           </View>
           
           <TouchableOpacity
@@ -380,23 +384,23 @@ export default function EditDeckScreen() {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
-        <View style={commonStyles.card}>
-          <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>Deck Information</Text>
+        <View style={styles.card}>
+          <Text style={[styles.subtitle, { marginBottom: 12 }]}>Deck Information</Text>
           
-          <Text style={[commonStyles.text, { marginBottom: 8 }]}>Deck Name</Text>
+          <Text style={[styles.text, { marginBottom: 8 }]}>{t.deckName}</Text>
           <TextInput
-            style={commonStyles.input}
+            style={[styles.input, { color: colors.text }]}
             value={deckName}
             onChangeText={setDeckName}
-            placeholder="Enter deck name"
+            placeholder={t.enterDeckName}
             placeholderTextColor={colors.textSecondary}
           />
         </View>
 
-        <View style={commonStyles.card}>
-          <View style={commonStyles.row}>
-            <Text style={[commonStyles.subtitle, { flex: 1 }]}>
-              Import Decklist
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Text style={[styles.subtitle, { flex: 1 }]}>
+              {t.importDecklist}
             </Text>
             <TouchableOpacity
               onPress={() => setShowImportSection(!showImportSection)}
@@ -412,16 +416,16 @@ export default function EditDeckScreen() {
           
           {showImportSection && (
             <View style={{ marginTop: 12 }}>
-              <Text style={[commonStyles.text, { marginBottom: 8 }]}>
-                Paste Decklist Text
+              <Text style={[styles.text, { marginBottom: 8 }]}>
+                {t.pasteDecklist}
               </Text>
-              <Text style={[commonStyles.textSecondary, { fontSize: 12, marginBottom: 8 }]}>
+              <Text style={[styles.textSecondary, { fontSize: 12, marginBottom: 8 }]}>
                 Supports both formats:{'\n'}
                 • "1 Arena of Glory"{'\n'}
                 • "1 Arena of Glory (OTJ) 251"
               </Text>
               <TextInput
-                style={[commonStyles.input, { height: 120, textAlignVertical: 'top' }]}
+                style={[styles.input, { height: 120, textAlignVertical: 'top', color: colors.text }]}
                 value={decklistText}
                 onChangeText={setDecklistText}
                 placeholder="1 Arena of Glory&#10;1 Battle Hymn (OTJ) 123&#10;1 Beetleback Chief&#10;..."
@@ -429,7 +433,7 @@ export default function EditDeckScreen() {
                 multiline
               />
               
-              <View style={commonStyles.row}>
+              <View style={styles.row}>
                 <TouchableOpacity
                   onPress={handleImportDecklist}
                   style={{
@@ -443,7 +447,7 @@ export default function EditDeckScreen() {
                   }}
                 >
                   <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600' }}>
-                    Import Text
+                    {t.importText}
                   </Text>
                 </TouchableOpacity>
                 
@@ -458,7 +462,7 @@ export default function EditDeckScreen() {
                   }}
                 >
                   <Text style={{ color: colors.text, fontSize: 16 }}>
-                    Clear
+                    {t.clear}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -478,10 +482,10 @@ export default function EditDeckScreen() {
                 >
                   <Icon name="document-text" size={20} color={colors.background} style={{ marginRight: 8 }} />
                   <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600' }}>
-                    Upload Text File
+                    {t.uploadFile}
                   </Text>
                 </TouchableOpacity>
-                <Text style={[commonStyles.textSecondary, { fontSize: 12, textAlign: 'center', marginTop: 4 }]}>
+                <Text style={[styles.textSecondary, { fontSize: 12, textAlign: 'center', marginTop: 4 }]}>
                   Select a .txt file with your decklist
                 </Text>
               </View>
@@ -489,17 +493,17 @@ export default function EditDeckScreen() {
           )}
         </View>
 
-        <View style={commonStyles.card}>
-          <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>
-            Add Card ({totalCards} cards)
+        <View style={styles.card}>
+          <Text style={[styles.subtitle, { marginBottom: 12 }]}>
+            {t.addCards} ({totalCards} {t.cards.toLowerCase()})
           </Text>
           
-          <Text style={[commonStyles.text, { marginBottom: 8 }]}>Card Name</Text>
+          <Text style={[styles.text, { marginBottom: 8 }]}>{t.cardName}</Text>
           <TextInput
-            style={commonStyles.input}
+            style={[styles.input, { color: colors.text }]}
             value={newCardName}
             onChangeText={setNewCardName}
-            placeholder="Enter card name"
+            placeholder={t.cardName}
             placeholderTextColor={colors.textSecondary}
             onSubmitEditing={addCard}
             returnKeyType="done"
@@ -523,18 +527,18 @@ export default function EditDeckScreen() {
         </View>
 
         {cards.length > 0 && (
-          <View style={commonStyles.card}>
-            <View style={commonStyles.row}>
-              <Text style={[commonStyles.subtitle, { flex: 1 }]}>
-                Cards in Deck ({totalCards})
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Text style={[styles.subtitle, { flex: 1 }]}>
+                {t.cards} in Deck ({totalCards})
                 {commanderCard && (
-                  <Text style={[commonStyles.textSecondary, { fontSize: 14 }]}>
-                    {' '}• Commander: {commanderCard.name}
+                  <Text style={[styles.textSecondary, { fontSize: 14 }]}>
+                    {' '}• {t.commander}: {commanderCard.name}
                   </Text>
                 )}
                 {partnerCommanderCards.length > 0 && (
-                  <Text style={[commonStyles.textSecondary, { fontSize: 14 }]}>
-                    {' '}• Partners: {partnerCommanderCards.map(p => p.name).join(', ')}
+                  <Text style={[styles.textSecondary, { fontSize: 14 }]}>
+                    {' '}• {t.partnerCommander}: {partnerCommanderCards.map(p => p.name).join(', ')}
                   </Text>
                 )}
               </Text>
@@ -557,9 +561,9 @@ export default function EditDeckScreen() {
                   marginVertical: (card.isCommander || card.isPartnerCommander) ? 2 : 0,
                 }}
               >
-                <View style={commonStyles.row}>
+                <View style={styles.row}>
                   <View style={{ flex: 1 }}>
-                    <View style={[commonStyles.row, { alignItems: 'center' }]}>
+                    <View style={[styles.row, { alignItems: 'center' }]}>
                       {shouldShowFlag(card) && (
                         <TouchableOpacity
                           onPress={() => toggleCommander(card.id)}
@@ -574,7 +578,7 @@ export default function EditDeckScreen() {
                       )}
                       <Text 
                         style={[
-                          commonStyles.text, 
+                          styles.text, 
                           { 
                             flex: 1,
                             flexWrap: 'wrap',
@@ -587,18 +591,18 @@ export default function EditDeckScreen() {
                       </Text>
                     </View>
                     {card.isCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.commander, marginLeft: 30 }]}>
-                        Commander
+                      <Text style={[styles.textSecondary, { fontSize: 12, color: colors.commander, marginLeft: 30 }]}>
+                        {t.commander}
                       </Text>
                     )}
                     {card.isPartnerCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.partnerCommander, marginLeft: 30 }]}>
-                        Partner Commander
+                      <Text style={[styles.textSecondary, { fontSize: 12, color: colors.partnerCommander, marginLeft: 30 }]}>
+                        {t.partnerCommander}
                       </Text>
                     )}
                   </View>
                   
-                  <View style={commonStyles.row}>
+                  <View style={styles.row}>
                     <TouchableOpacity
                       onPress={() => updateCardQuantity(card.id, -1)}
                       style={{
@@ -614,7 +618,7 @@ export default function EditDeckScreen() {
                       <Icon name="remove" size={16} color={colors.text} />
                     </TouchableOpacity>
                     
-                    <Text style={[commonStyles.text, { minWidth: 24, textAlign: 'center' }]}>
+                    <Text style={[styles.text, { minWidth: 24, textAlign: 'center' }]}>
                       {card.quantity}
                     </Text>
                     

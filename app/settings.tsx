@@ -6,6 +6,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
 import { SUPPORTED_LANGUAGES } from '../types/settings';
 import { scryfallService } from '../services/scryfallService';
+import { useTranslations } from '../utils/localization';
 import Icon from '../components/Icon';
 
 export default function SettingsScreen() {
@@ -13,6 +14,9 @@ export default function SettingsScreen() {
   const { colors, styles } = useTheme();
   const [clearingCache, setClearingCache] = useState(false);
   const [cacheInfo, setCacheInfo] = useState<{ fileCount: number; totalSize: number } | null>(null);
+  
+  // Always call useTranslations, but provide a fallback
+  const t = useTranslations(settings?.language || 'en');
 
   useEffect(() => {
     const loadCacheInfo = async () => {
@@ -35,15 +39,6 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleTranslateToggle = async (value: boolean) => {
-    console.log('Toggling card name translation:', value);
-    try {
-      await updateSettings({ translateCardNames: value });
-    } catch (error) {
-      console.log('Error updating translation setting:', error);
-    }
-  };
-
   const handleDarkModeToggle = async (value: boolean) => {
     console.log('Toggling dark mode:', value);
     try {
@@ -55,25 +50,25 @@ export default function SettingsScreen() {
 
   const handleClearCache = async () => {
     Alert.alert(
-      'Clear Cache',
-      'This will delete all downloaded card images. They will be re-downloaded when needed. Continue?',
+      t.clearCache,
+      t.confirmClearCache,
       [
         {
-          text: 'Cancel',
+          text: t.cancel,
           style: 'cancel',
         },
         {
-          text: 'Clear',
+          text: t.clear,
           style: 'destructive',
           onPress: async () => {
             setClearingCache(true);
             try {
               await scryfallService.clearImageCache();
-              Alert.alert('Success', 'Cache cleared successfully!');
+              Alert.alert(t.success, t.cacheCleared);
               console.log('Cache cleared successfully');
             } catch (error) {
               console.log('Error clearing cache:', error);
-              Alert.alert('Error', 'Failed to clear cache. Please try again.');
+              Alert.alert(t.error, t.failedToClear);
             } finally {
               setClearingCache(false);
             }
@@ -94,7 +89,7 @@ export default function SettingsScreen() {
   if (loading || !settings) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={styles.text}>Loading settings...</Text>
+        <Text style={styles.text}>{t.loadingSettings}</Text>
       </View>
     );
   }
@@ -110,22 +105,22 @@ export default function SettingsScreen() {
           >
             <Icon name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Settings</Text>
+          <Text style={styles.title}>{t.settings}</Text>
         </View>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
         {/* Appearance */}
         <View style={[styles.card, { marginBottom: 20 }]}>
-          <Text style={[styles.subtitle, { marginBottom: 16 }]}>Appearance</Text>
+          <Text style={[styles.subtitle, { marginBottom: 16 }]}>{t.appearance}</Text>
           
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.subtitle, { marginBottom: 4 }]}>
-                Dark Mode
+                {t.darkMode}
               </Text>
               <Text style={[styles.textSecondary, { fontSize: 14 }]}>
-                Switch between light and dark theme
+                {t.switchTheme}
               </Text>
             </View>
             <Switch
@@ -139,7 +134,7 @@ export default function SettingsScreen() {
 
         {/* Language Selection */}
         <View style={[styles.card, { marginBottom: 20 }]}>
-          <Text style={[styles.subtitle, { marginBottom: 16 }]}>Language</Text>
+          <Text style={[styles.subtitle, { marginBottom: 16 }]}>{t.language}</Text>
           
           {SUPPORTED_LANGUAGES.map((lang) => (
             <TouchableOpacity
@@ -174,37 +169,17 @@ export default function SettingsScreen() {
           ))}
         </View>
 
-        {/* Card Name Translation */}
-        <View style={[styles.card, { marginBottom: 20 }]}>
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.subtitle, { marginBottom: 4 }]}>
-                Translate Card Names
-              </Text>
-              <Text style={[styles.textSecondary, { fontSize: 14 }]}>
-                Show card names in selected language instead of English
-              </Text>
-            </View>
-            <Switch
-              value={settings.translateCardNames}
-              onValueChange={handleTranslateToggle}
-              trackColor={{ false: colors.border, true: colors.primary + '40' }}
-              thumbColor={settings.translateCardNames ? colors.primary : colors.textSecondary}
-            />
-          </View>
-        </View>
-
         {/* Cache Management */}
         <View style={[styles.card, { marginBottom: 20 }]}>
-          <Text style={[styles.subtitle, { marginBottom: 16 }]}>Cache Management</Text>
+          <Text style={[styles.subtitle, { marginBottom: 16 }]}>{t.cacheManagement}</Text>
           
           {cacheInfo && (
             <View style={{ marginBottom: 16 }}>
               <Text style={[styles.textSecondary, { fontSize: 14, marginBottom: 4 }]}>
-                Cached Images: {cacheInfo.fileCount} files
+                {t.cachedImages}: {cacheInfo.fileCount} {t.files}
               </Text>
               <Text style={[styles.textSecondary, { fontSize: 14 }]}>
-                Cache Size: {formatBytes(cacheInfo.totalSize)}
+                {t.cacheSize}: {formatBytes(cacheInfo.totalSize)}
               </Text>
             </View>
           )}
@@ -228,13 +203,13 @@ export default function SettingsScreen() {
                 style={{ marginRight: 8 }} 
               />
               <Text style={styles.buttonText}>
-                {clearingCache ? 'Clearing...' : 'Clear Cache'}
+                {clearingCache ? t.clearing : t.clearCache}
               </Text>
             </View>
           </TouchableOpacity>
           
           <Text style={[styles.textSecondary, { fontSize: 12, marginTop: 8, textAlign: 'center' }]}>
-            This will delete all downloaded card images from Scryfall
+            {t.deleteAllImages}
           </Text>
         </View>
 
@@ -244,8 +219,7 @@ export default function SettingsScreen() {
             <Icon name="information-circle" size={20} color={colors.info} style={{ marginRight: 12 }} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.text, { fontSize: 14, lineHeight: 20 }]}>
-                When card name translation is enabled, the app will fetch localized card names from the Scryfall API. 
-                This may take longer to load and requires an internet connection.
+                Card and deck names will always remain in English to ensure compatibility with the Scryfall database.
               </Text>
             </View>
           </View>

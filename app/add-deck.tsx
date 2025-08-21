@@ -4,16 +4,21 @@ import { Card } from '../types/deck';
 import * as DocumentPicker from 'expo-document-picker';
 import { router } from 'expo-router';
 import { useTheme } from '../hooks/useTheme';
+import { useSettings } from '../hooks/useSettings';
+import { useTranslations } from '../utils/localization';
 import { useState } from 'react';
 import Icon from '../components/Icon';
 import { useDecks } from '../hooks/useDecks';
 
 export default function AddDeckScreen() {
   const { addDeck } = useDecks();
+  const { settings } = useSettings();
   const { colors, styles } = useTheme();
   const [deckName, setDeckName] = useState('');
   const [cards, setCards] = useState<Card[]>([]);
   const [newCardName, setNewCardName] = useState('');
+  
+  const t = useTranslations(settings?.language || 'en');
 
   const addCard = () => {
     if (!newCardName.trim()) return;
@@ -107,12 +112,12 @@ export default function AddDeckScreen() {
 
   const handleImportDecklist = () => {
     Alert.prompt(
-      'Import Decklist',
-      'Paste your decklist here (one card per line):',
+      t.importDecklist,
+      t.pasteDecklist,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t.cancel, style: 'cancel' },
         {
-          text: 'Import',
+          text: t.import,
           onPress: (text) => {
             if (text) {
               const importedCards = parseDecklistText(text);
@@ -137,33 +142,33 @@ export default function AddDeckScreen() {
         const text = await response.text();
         const importedCards = parseDecklistText(text);
         setCards([...cards, ...importedCards]);
-        Alert.alert('Success', `Imported ${importedCards.length} cards from file`);
+        Alert.alert(t.success, `${t.imported} ${importedCards.length} ${t.cards.toLowerCase()}`);
       }
     } catch (error) {
       console.log('Error uploading file:', error);
-      Alert.alert('Error', 'Failed to read file');
+      Alert.alert(t.error, t.failedToRead);
     }
   };
 
   const clearAllCards = () => {
     Alert.alert(
-      'Clear All Cards',
-      'Are you sure you want to remove all cards?',
+      t.clearAllCards,
+      t.confirmClearCards,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear', style: 'destructive', onPress: () => setCards([]) }
+        { text: t.cancel, style: 'cancel' },
+        { text: t.clear, style: 'destructive', onPress: () => setCards([]) }
       ]
     );
   };
 
   const handleSave = () => {
     if (!deckName.trim()) {
-      Alert.alert('Error', 'Please enter a deck name');
+      Alert.alert(t.error, t.enterDeckNameError);
       return;
     }
     
     if (cards.length === 0) {
-      Alert.alert('Error', 'Please add at least one card');
+      Alert.alert(t.error, t.addCardError);
       return;
     }
     
@@ -176,7 +181,7 @@ export default function AddDeckScreen() {
       router.back();
     } catch (error) {
       console.log('Error saving deck:', error);
-      Alert.alert('Error', 'Failed to save deck');
+      Alert.alert(t.error, t.saveError);
     }
   };
 
@@ -207,32 +212,32 @@ export default function AddDeckScreen() {
           >
             <Icon name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Add New Deck</Text>
+          <Text style={styles.title}>{t.addNewDeck}</Text>
         </View>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
         {/* Deck Name */}
         <View style={[styles.card, { marginBottom: 20 }]}>
-          <Text style={[styles.subtitle, { marginBottom: 12 }]}>Deck Name</Text>
+          <Text style={[styles.subtitle, { marginBottom: 12 }]}>{t.deckName}</Text>
           <TextInput
             style={[styles.input, { color: colors.text }]}
             value={deckName}
             onChangeText={setDeckName}
-            placeholder="Enter deck name"
+            placeholder={t.enterDeckName}
             placeholderTextColor={colors.textSecondary}
           />
         </View>
 
         {/* Add Card */}
         <View style={[styles.card, { marginBottom: 20 }]}>
-          <Text style={[styles.subtitle, { marginBottom: 12 }]}>Add Cards</Text>
+          <Text style={[styles.subtitle, { marginBottom: 12 }]}>{t.addCards}</Text>
           <View style={styles.row}>
             <TextInput
               style={[styles.input, { flex: 1, marginRight: 12, color: colors.text }]}
               value={newCardName}
               onChangeText={setNewCardName}
-              placeholder="Card name"
+              placeholder={t.cardName}
               placeholderTextColor={colors.textSecondary}
               onSubmitEditing={addCard}
             />
@@ -250,13 +255,13 @@ export default function AddDeckScreen() {
               style={[styles.button, { flex: 1, marginRight: 8, backgroundColor: colors.secondary }]}
               onPress={handleImportDecklist}
             >
-              <Text style={styles.buttonText}>Import Text</Text>
+              <Text style={styles.buttonText}>{t.importText}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, { flex: 1, marginLeft: 8, backgroundColor: colors.secondary }]}
               onPress={handleUploadFile}
             >
-              <Text style={styles.buttonText}>Upload File</Text>
+              <Text style={styles.buttonText}>{t.uploadFile}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -266,7 +271,7 @@ export default function AddDeckScreen() {
           <View style={[styles.card, { marginBottom: 20 }]}>
             <View style={[styles.row, { marginBottom: 16 }]}>
               <Text style={[styles.subtitle, { flex: 1 }]}>
-                Cards ({cards.reduce((sum, card) => sum + card.quantity, 0)})
+                {t.cards} ({cards.reduce((sum, card) => sum + card.quantity, 0)})
               </Text>
               <TouchableOpacity onPress={clearAllCards}>
                 <Icon name="trash-outline" size={20} color={colors.error} />
@@ -346,7 +351,7 @@ export default function AddDeckScreen() {
           style={[styles.button, { marginBottom: 20 }]}
           onPress={handleSave}
         >
-          <Text style={styles.buttonText}>Save Deck</Text>
+          <Text style={styles.buttonText}>{t.saveDeck}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

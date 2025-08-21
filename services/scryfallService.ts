@@ -80,18 +80,13 @@ class ScryfallService {
     });
   }
 
-  public async searchCard(cardName: string, language: string = 'en'): Promise<ScryfallCard | null> {
+  public async searchCard(cardName: string): Promise<ScryfallCard | null> {
     try {
-      console.log('Searching for card:', cardName, 'in language:', language);
+      console.log('Searching for card:', cardName);
       
       return await this.queueRequest(async () => {
         const encodedName = encodeURIComponent(cardName);
-        let url = `${this.BASE_URL}/cards/named?exact=${encodedName}`;
-        
-        // Add language parameter if not English
-        if (language !== 'en') {
-          url += `&format=json&include_multilingual=true`;
-        }
+        const url = `${this.BASE_URL}/cards/named?exact=${encodedName}`;
         
         console.log('Making Scryfall API request to:', url);
         const response = await fetch(url);
@@ -105,13 +100,6 @@ class ScryfallService {
         }
         
         const data = await response.json();
-        
-        // If we requested a non-English language and the card has multilingual data
-        if (language !== 'en' && data.printed_name && data.printed_name[language]) {
-          console.log('Found localized card name:', data.printed_name[language]);
-          data.localized_name = data.printed_name[language];
-        }
-        
         console.log('Found card on Scryfall:', data.name);
         return data;
       });
@@ -160,9 +148,9 @@ class ScryfallService {
     }
   }
 
-  public async getCardWithImage(cardName: string, language: string = 'en'): Promise<{ card: ScryfallCard; imagePath: string | null } | null> {
+  public async getCardWithImage(cardName: string): Promise<{ card: ScryfallCard; imagePath: string | null } | null> {
     try {
-      const card = await this.searchCard(cardName, language);
+      const card = await this.searchCard(cardName);
       if (!card) {
         return null;
       }
