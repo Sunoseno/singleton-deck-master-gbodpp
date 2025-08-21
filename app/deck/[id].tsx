@@ -10,7 +10,8 @@ import { Card, CardConflict } from '../../types/deck';
 import Icon from '../../components/Icon';
 import ExpandableSection from '../../components/ExpandableSection';
 import CardImageModal from '../../components/CardImageModal';
-import ColorIdentityDisplay from '../../components/ColorIdentityDisplay';
+import { LinearGradient } from 'expo-linear-gradient';
+import { scryfallService } from '../../services/scryfallService';
 
 export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -203,6 +204,15 @@ export default function DeckDetailScreen() {
     }
   };
 
+  const getGradientColors = (colorIdentity: string[] | undefined): string[] => {
+    if (!colorIdentity || colorIdentity.length === 0) {
+      return [colors.cardBackground, colors.cardBackground];
+    }
+    
+    const gradientColors = scryfallService.getColorGradient(colorIdentity);
+    return gradientColors.length > 1 ? gradientColors : [gradientColors[0], gradientColors[0]];
+  };
+
   if (!deck) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -249,12 +259,7 @@ export default function DeckDetailScreen() {
           </TouchableOpacity>
           
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={[styles.title, { fontSize: 20, marginRight: 8 }]}>{deck.name}</Text>
-              {deck.colorIdentity && deck.colorIdentity.length > 0 && (
-                <ColorIdentityDisplay colorIdentity={deck.colorIdentity} size={24} />
-              )}
-            </View>
+            <Text style={[styles.title, { fontSize: 20 }]}>{deck.name}</Text>
           </View>
           
           <TouchableOpacity
@@ -264,64 +269,108 @@ export default function DeckDetailScreen() {
             <Icon name="create" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
-
-        <View style={{ alignItems: 'center', marginTop: 8 }}>
-          {deck.isActive ? (
-            <View style={[styles.badge, { backgroundColor: colors.success }]}>
-              <Text style={styles.badgeText}>ACTIVE</Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              onPress={handleSetActive}
-              style={{
-                backgroundColor: colors.primary,
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 8,
-              }}
-            >
-              <Text style={{ color: colors.background, fontSize: 14, fontWeight: '600' }}>
-                {t.setActive.toUpperCase()}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
-        <View style={styles.card}>
-          <Text style={[styles.subtitle, { marginBottom: 8 }]}>
-            {t.totalCards}: {totalCards}
-          </Text>
-          {commanderCard ? (
-            <View>
-              <Text style={[styles.text, { color: colors.commander, fontWeight: '600' }]}>
-                {t.commander}: {commanderCard.name}
-              </Text>
-              {partnerCommanderCards.length > 0 && (
-                <Text style={[styles.text, { color: colors.partnerCommander, fontWeight: '600' }]}>
-                  {t.partnerCommander}: {partnerCommanderCards.map(p => p.name).join(', ')}
+        {/* Deck Overview Card - Matching the list style */}
+        <LinearGradient
+          colors={getGradientColors(deck.colorIdentity)}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.card,
+            {
+              borderWidth: deck.isActive ? 3 : 1,
+              borderColor: deck.isActive ? colors.primary : colors.border,
+              marginBottom: 20,
+            }
+          ]}
+        >
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <View style={[styles.row, { alignItems: 'center', marginBottom: 4 }]}>
+                <Text style={[styles.subtitle, { color: colors.text, marginRight: 8 }]}>
+                  {deck.name}
                 </Text>
+                {deck.colorIdentity && deck.colorIdentity.length > 0 && (
+                  <View style={{ flexDirection: 'row' }}>
+                    {deck.colorIdentity.map((color: string, index: number) => (
+                      <View
+                        key={index}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: 8,
+                          backgroundColor: scryfallService.getColorHex(color),
+                          marginLeft: index > 0 ? 2 : 0,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                        }}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
+              
+              <Text style={[styles.textSecondary, { fontSize: 14, marginBottom: 4 }]}>
+                {t.totalCards}: {totalCards}
+              </Text>
+              
+              {/* Commanders */}
+              {commanders.length > 0 && (
+                <View style={{ marginBottom: 4 }}>
+                  {commanders.map((commander: any, index: number) => (
+                    <Text key={index} style={[styles.text, { fontSize: 14, color: colors.commander }]}>
+                      ★ {commander.name}
+                    </Text>
+                  ))}
+                </View>
               )}
-              <Text style={styles.textSecondary}>
-                {t.otherDecks}: {totalCards - (commanderCard.quantity || 1) - partnerCommanderCards.reduce((sum, p) => sum + (p.quantity || 1), 0)}
-              </Text>
+              
+              {/* Partner Commanders */}
+              {partners.length > 0 && (
+                <View style={{ marginBottom: 4 }}>
+                  {partners.map((partner: any, index: number) => (
+                    <Text key={index} style={[styles.text, { fontSize: 14, color: colors.partnerCommander }]}>
+                      ★ {partner.name}
+                    </Text>
+                  ))}
+                </View>
+              )}
             </View>
-          ) : partnerCommanderCards.length > 0 ? (
-            <View>
-              <Text style={[styles.text, { color: colors.partnerCommander, fontWeight: '600' }]}>
-                {t.partnerCommander}: {partnerCommanderCards.map(p => p.name).join(', ')}
-              </Text>
-              <Text style={styles.textSecondary}>
-                {t.otherDecks}: {totalCards - partnerCommanderCards.reduce((sum, p) => sum + (p.quantity || 1), 0)}
-              </Text>
+            
+            <View style={{ alignItems: 'flex-end' }}>
+              {deck.isActive ? (
+                <View style={{
+                  backgroundColor: colors.success,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 12,
+                  marginBottom: 8,
+                }}>
+                  <Text style={[styles.text, { color: colors.background, fontSize: 12, fontWeight: 'bold' }]}>
+                    ACTIVE
+                  </Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={handleSetActive}
+                  style={{
+                    backgroundColor: colors.secondary,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text style={[styles.text, { color: colors.background, fontSize: 12 }]}>
+                    {t.setActive}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
-          ) : (
-            <Text style={[styles.text, { color: colors.warning }]}>
-              No commander selected
-            </Text>
-          )}
-        </View>
+          </View>
+        </LinearGradient>
 
         {conflicts.length > 0 && (
           <View style={styles.card}>

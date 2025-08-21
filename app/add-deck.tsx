@@ -17,6 +17,7 @@ export default function AddDeckScreen() {
   const [deckName, setDeckName] = useState('');
   const [cards, setCards] = useState<Card[]>([]);
   const [newCardName, setNewCardName] = useState('');
+  const [importText, setImportText] = useState('');
   
   const t = useTranslations(settings?.language || 'en');
 
@@ -111,23 +112,19 @@ export default function AddDeckScreen() {
   };
 
   const handleImportDecklist = () => {
-    Alert.prompt(
-      t.importDecklist,
-      t.pasteDecklist,
-      [
-        { text: t.cancel, style: 'cancel' },
-        {
-          text: t.import,
-          onPress: (text) => {
-            if (text) {
-              const importedCards = parseDecklistText(text);
-              setCards([...cards, ...importedCards]);
-            }
-          }
-        }
-      ],
-      'plain-text'
-    );
+    if (!importText.trim()) {
+      Alert.alert(t.error, t.pasteDecklist);
+      return;
+    }
+    
+    const importedCards = parseDecklistText(importText);
+    if (importedCards.length > 0) {
+      setCards([...cards, ...importedCards]);
+      setImportText('');
+      Alert.alert(t.success, `${t.imported} ${importedCards.length} ${t.cards.toLowerCase()}`);
+    } else {
+      Alert.alert(t.error, t.failedToRead);
+    }
   };
 
   const handleUploadFile = async () => {
@@ -203,7 +200,7 @@ export default function AddDeckScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header with Save Button */}
       <View style={[styles.section, { paddingTop: 20 }]}>
         <View style={styles.row}>
           <TouchableOpacity
@@ -212,7 +209,13 @@ export default function AddDeckScreen() {
           >
             <Icon name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>{t.addNewDeck}</Text>
+          <Text style={[styles.title, { flex: 1 }]}>{t.addNewDeck}</Text>
+          <TouchableOpacity
+            onPress={handleSave}
+            style={{ marginLeft: 16 }}
+          >
+            <Icon name="checkmark" size={24} color={colors.primary} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -229,7 +232,46 @@ export default function AddDeckScreen() {
           />
         </View>
 
-        {/* Add Card */}
+        {/* Import Options - Prioritized */}
+        <View style={[styles.card, { marginBottom: 20 }]}>
+          <Text style={[styles.subtitle, { marginBottom: 12 }]}>{t.importDecklist}</Text>
+          
+          {/* Import Text Field */}
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: colors.text,
+                height: 120,
+                textAlignVertical: 'top',
+                marginBottom: 12,
+              }
+            ]}
+            value={importText}
+            onChangeText={setImportText}
+            placeholder={t.pasteDecklist}
+            placeholderTextColor={colors.textSecondary}
+            multiline
+          />
+          
+          {/* Import Buttons */}
+          <View style={[styles.row, { justifyContent: 'space-between' }]}>
+            <TouchableOpacity
+              style={[styles.button, { flex: 1, marginRight: 8 }]}
+              onPress={handleImportDecklist}
+            >
+              <Text style={styles.buttonText}>{t.importText}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, { flex: 1, marginLeft: 8, backgroundColor: colors.secondary }]}
+              onPress={handleUploadFile}
+            >
+              <Text style={styles.buttonText}>{t.uploadFile}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Manual Card Entry */}
         <View style={[styles.card, { marginBottom: 20 }]}>
           <Text style={[styles.subtitle, { marginBottom: 12 }]}>{t.addCards}</Text>
           <View style={styles.row}>
@@ -246,22 +288,6 @@ export default function AddDeckScreen() {
               onPress={addCard}
             >
               <Icon name="add" size={20} color={colors.background} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Import Options */}
-          <View style={[styles.row, { marginTop: 16, justifyContent: 'space-between' }]}>
-            <TouchableOpacity
-              style={[styles.button, { flex: 1, marginRight: 8, backgroundColor: colors.secondary }]}
-              onPress={handleImportDecklist}
-            >
-              <Text style={styles.buttonText}>{t.importText}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, { flex: 1, marginLeft: 8, backgroundColor: colors.secondary }]}
-              onPress={handleUploadFile}
-            >
-              <Text style={styles.buttonText}>{t.uploadFile}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -345,14 +371,6 @@ export default function AddDeckScreen() {
             ))}
           </View>
         )}
-
-        {/* Save Button */}
-        <TouchableOpacity
-          style={[styles.button, { marginBottom: 20 }]}
-          onPress={handleSave}
-        >
-          <Text style={styles.buttonText}>{t.saveDeck}</Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );
