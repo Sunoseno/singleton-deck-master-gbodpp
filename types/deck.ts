@@ -4,6 +4,7 @@ export interface Card {
   name: string;
   quantity: number;
   isCommander?: boolean;
+  isPartnerCommander?: boolean;
 }
 
 export interface Deck {

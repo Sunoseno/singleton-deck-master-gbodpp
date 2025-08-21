@@ -21,7 +21,8 @@ export default function EditDeckScreen() {
   useEffect(() => {
     if (deck) {
       setDeckName(deck.name);
-      setCards([...deck.cards]);
+      // Sort existing cards alphabetically
+      setCards([...deck.cards].sort((a, b) => a.name.localeCompare(b.name)));
     }
   }, [deck]);
 
@@ -50,16 +51,18 @@ export default function EditDeckScreen() {
         name: newCardName.trim(),
         quantity: 1,
         isCommander: false,
+        isPartnerCommander: false,
       };
-      setCards(prev => [...prev, newCard]);
+      
+      // Sort cards alphabetically by name
+      setCards(prev => {
+        const updatedCards = [...prev, newCard];
+        return updatedCards.sort((a, b) => a.name.localeCompare(b.name));
+      });
     }
 
     setNewCardName('');
     console.log('Added card:', newCardName.trim());
-  };
-
-  const removeCard = (cardId: string) => {
-    setCards(prev => prev.filter(card => card.id !== cardId));
   };
 
   const updateCardQuantity = (cardId: string, change: number) => {
@@ -73,10 +76,50 @@ export default function EditDeckScreen() {
   };
 
   const toggleCommander = (cardId: string) => {
-    setCards(prev => prev.map(card => ({
-      ...card,
-      isCommander: card.id === cardId ? !card.isCommander : false,
-    })));
+    const commanders = cards.filter(card => card.isCommander);
+    const partnerCommanders = cards.filter(card => card.isPartnerCommander);
+    const clickedCard = cards.find(card => card.id === cardId);
+    
+    if (!clickedCard) return;
+
+    console.log('Toggle commander clicked for:', clickedCard.name);
+    console.log('Current commanders:', commanders.length);
+    console.log('Current partner commanders:', partnerCommanders.length);
+
+    setCards(prev => prev.map(card => {
+      if (card.id === cardId) {
+        // If clicking on current commander (orange flag)
+        if (card.isCommander) {
+          console.log('Clicking orange flag - turning red');
+          return { ...card, isCommander: false, isPartnerCommander: true };
+        }
+        
+        // If clicking on current partner commander (red flag)
+        if (card.isPartnerCommander) {
+          console.log('Clicking red flag - removing commander status');
+          return { ...card, isCommander: false, isPartnerCommander: false };
+        }
+        
+        // If no commander exists, make this the commander (orange)
+        if (commanders.length === 0 && partnerCommanders.length === 0) {
+          console.log('No commanders - making this commander (orange)');
+          return { ...card, isCommander: true, isPartnerCommander: false };
+        }
+        
+        // If there's a commander but no partner, make this partner (red)
+        if (commanders.length === 0 && partnerCommanders.length === 1) {
+          console.log('One partner exists - making this partner (red)');
+          return { ...card, isCommander: false, isPartnerCommander: true };
+        }
+        
+        // If there's only a commander (orange), make this partner (red)
+        if (commanders.length === 1 && partnerCommanders.length === 0) {
+          console.log('One commander exists - making this partner (red)');
+          return { ...card, isCommander: false, isPartnerCommander: true };
+        }
+      }
+      return card;
+    }));
   };
 
   const parseDecklistText = (text: string): Card[] => {
@@ -107,18 +150,19 @@ export default function EditDeckScreen() {
       }
     }
     
-    // Convert map to cards array
+    // Convert map to cards array and sort alphabetically
     cardMap.forEach((quantity, cardName) => {
       const card: Card = {
         id: `${Date.now()}-${Math.random()}`,
         name: cardName,
         quantity: quantity,
         isCommander: false,
+        isPartnerCommander: false,
       };
       parsedCards.push(card);
     });
     
-    return parsedCards;
+    return parsedCards.sort((a, b) => a.name.localeCompare(b.name));
   };
 
   const handleImportDecklist = () => {
@@ -150,7 +194,8 @@ export default function EditDeckScreen() {
         }
       });
 
-      setCards(mergedCards);
+      // Sort the merged cards alphabetically
+      setCards(mergedCards.sort((a, b) => a.name.localeCompare(b.name)));
       setDecklistText('');
       setShowImportSection(false);
       
@@ -197,6 +242,29 @@ export default function EditDeckScreen() {
 
   const totalCards = cards.reduce((sum, card) => sum + card.quantity, 0);
   const commanderCard = cards.find(card => card.isCommander);
+  const partnerCommanderCards = cards.filter(card => card.isPartnerCommander);
+  const commanders = cards.filter(card => card.isCommander);
+  const partners = cards.filter(card => card.isPartnerCommander);
+
+  const shouldShowFlag = (card: Card) => {
+    // Always show flag for commanders and partner commanders
+    if (card.isCommander || card.isPartnerCommander) return true;
+    
+    // Show flag for other cards only if no commanders exist or if there's only one partner commander
+    return commanders.length === 0 && partners.length <= 1;
+  };
+
+  const getFlagIcon = (card: Card) => {
+    if (card.isCommander) return "flag";
+    if (card.isPartnerCommander) return "flag";
+    return "flag-outline";
+  };
+
+  const getFlagColor = (card: Card) => {
+    if (card.isCommander) return colors.warning; // Orange
+    if (card.isPartnerCommander) return colors.error; // Red
+    return colors.textSecondary;
+  };
 
   return (
     <View style={commonStyles.container}>
@@ -350,6 +418,11 @@ export default function EditDeckScreen() {
                     {' '}• Commander: {commanderCard.name}
                   </Text>
                 )}
+                {partnerCommanderCards.length > 0 && (
+                  <Text style={[commonStyles.textSecondary, { fontSize: 14 }]}>
+                    {' '}• Partners: {partnerCommanderCards.map(p => p.name).join(', ')}
+                  </Text>
+                )}
               </Text>
             </View>
             
@@ -360,36 +433,53 @@ export default function EditDeckScreen() {
                   paddingVertical: 12,
                   borderBottomWidth: index < cards.length - 1 ? 1 : 0,
                   borderBottomColor: colors.border,
-                  backgroundColor: card.isCommander ? colors.success + '20' : 'transparent',
-                  paddingHorizontal: card.isCommander ? 8 : 0,
-                  borderRadius: card.isCommander ? 8 : 0,
-                  marginVertical: card.isCommander ? 2 : 0,
+                  backgroundColor: card.isCommander 
+                    ? colors.warning + '20' 
+                    : card.isPartnerCommander 
+                    ? colors.error + '20' 
+                    : 'transparent',
+                  paddingHorizontal: (card.isCommander || card.isPartnerCommander) ? 8 : 0,
+                  borderRadius: (card.isCommander || card.isPartnerCommander) ? 8 : 0,
+                  marginVertical: (card.isCommander || card.isPartnerCommander) ? 2 : 0,
                 }}
               >
                 <View style={commonStyles.row}>
                   <View style={{ flex: 1 }}>
-                    <View style={commonStyles.row}>
-                      <Text style={[commonStyles.text, { flex: 1 }]}>{card.name}</Text>
-                      {!card.isCommander && !commanderCard && (
+                    <View style={[commonStyles.row, { alignItems: 'center' }]}>
+                      {shouldShowFlag(card) && (
                         <TouchableOpacity
                           onPress={() => toggleCommander(card.id)}
                           style={{ padding: 4, marginRight: 8 }}
                         >
-                          <Icon name="flag-outline" size={18} color={colors.textSecondary} />
+                          <Icon 
+                            name={getFlagIcon(card)} 
+                            size={18} 
+                            color={getFlagColor(card)} 
+                          />
                         </TouchableOpacity>
                       )}
-                      {card.isCommander && (
-                        <TouchableOpacity
-                          onPress={() => toggleCommander(card.id)}
-                          style={{ padding: 4, marginRight: 8 }}
-                        >
-                          <Icon name="flag" size={18} color={colors.warning} />
-                        </TouchableOpacity>
-                      )}
+                      <Text 
+                        style={[
+                          commonStyles.text, 
+                          { 
+                            flex: 1,
+                            flexWrap: 'wrap',
+                            lineHeight: 20,
+                          }
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {card.name}
+                      </Text>
                     </View>
                     {card.isCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.success }]}>
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.warning, marginLeft: 30 }]}>
                         Commander
+                      </Text>
+                    )}
+                    {card.isPartnerCommander && (
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.error, marginLeft: 30 }]}>
+                        Partner Commander
                       </Text>
                     )}
                   </View>
@@ -424,17 +514,9 @@ export default function EditDeckScreen() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         marginLeft: 8,
-                        marginRight: 8,
                       }}
                     >
                       <Icon name="add" size={16} color={colors.background} />
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                      onPress={() => removeCard(card.id)}
-                      style={{ padding: 4 }}
-                    >
-                      <Icon name="trash" size={18} color={colors.error} />
                     </TouchableOpacity>
                   </View>
                 </View>

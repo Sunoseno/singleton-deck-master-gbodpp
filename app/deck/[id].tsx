@@ -79,10 +79,50 @@ export default function DeckDetailScreen() {
   const toggleCommander = async (cardId: string) => {
     if (!deck) return;
 
-    const updatedCards = deck.cards.map(card => ({
-      ...card,
-      isCommander: card.id === cardId ? !card.isCommander : false,
-    }));
+    const commanders = deck.cards.filter(card => card.isCommander);
+    const partnerCommanders = deck.cards.filter(card => card.isPartnerCommander);
+    const clickedCard = deck.cards.find(card => card.id === cardId);
+    
+    if (!clickedCard) return;
+
+    console.log('Toggle commander clicked for:', clickedCard.name);
+    console.log('Current commanders:', commanders.length);
+    console.log('Current partner commanders:', partnerCommanders.length);
+
+    const updatedCards = deck.cards.map(card => {
+      if (card.id === cardId) {
+        // If clicking on current commander (orange flag)
+        if (card.isCommander) {
+          console.log('Clicking orange flag - turning red');
+          return { ...card, isCommander: false, isPartnerCommander: true };
+        }
+        
+        // If clicking on current partner commander (red flag)
+        if (card.isPartnerCommander) {
+          console.log('Clicking red flag - removing commander status');
+          return { ...card, isCommander: false, isPartnerCommander: false };
+        }
+        
+        // If no commander exists, make this the commander (orange)
+        if (commanders.length === 0 && partnerCommanders.length === 0) {
+          console.log('No commanders - making this commander (orange)');
+          return { ...card, isCommander: true, isPartnerCommander: false };
+        }
+        
+        // If there's a commander but no partner, make this partner (red)
+        if (commanders.length === 0 && partnerCommanders.length === 1) {
+          console.log('One partner exists - making this partner (red)');
+          return { ...card, isCommander: false, isPartnerCommander: true };
+        }
+        
+        // If there's only a commander (orange), make this partner (red)
+        if (commanders.length === 1 && partnerCommanders.length === 0) {
+          console.log('One commander exists - making this partner (red)');
+          return { ...card, isCommander: false, isPartnerCommander: true };
+        }
+      }
+      return card;
+    });
 
     try {
       await updateDeck(deck.id, { cards: updatedCards });
@@ -102,6 +142,29 @@ export default function DeckDetailScreen() {
 
   const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
   const commanderCard = deck.cards.find(card => card.isCommander);
+  const partnerCommanderCards = deck.cards.filter(card => card.isPartnerCommander);
+  const commanders = deck.cards.filter(card => card.isCommander);
+  const partners = deck.cards.filter(card => card.isPartnerCommander);
+
+  const shouldShowFlag = (card: Card) => {
+    // Always show flag for commanders and partner commanders
+    if (card.isCommander || card.isPartnerCommander) return true;
+    
+    // Show flag for other cards only if no commanders exist or if there's only one partner commander
+    return commanders.length === 0 && partners.length <= 1;
+  };
+
+  const getFlagIcon = (card: Card) => {
+    if (card.isCommander) return "flag";
+    if (card.isPartnerCommander) return "flag";
+    return "flag-outline";
+  };
+
+  const getFlagColor = (card: Card) => {
+    if (card.isCommander) return colors.warning; // Orange
+    if (card.isPartnerCommander) return colors.error; // Red
+    return colors.textSecondary;
+  };
 
   return (
     <View style={commonStyles.container}>
@@ -156,11 +219,25 @@ export default function DeckDetailScreen() {
           </Text>
           {commanderCard ? (
             <View>
-              <Text style={[commonStyles.text, { color: colors.success, fontWeight: '600' }]}>
+              <Text style={[commonStyles.text, { color: colors.warning, fontWeight: '600' }]}>
                 Commander: {commanderCard.name}
               </Text>
+              {partnerCommanderCards.length > 0 && (
+                <Text style={[commonStyles.text, { color: colors.error, fontWeight: '600' }]}>
+                  Partner Commanders: {partnerCommanderCards.map(p => p.name).join(', ')}
+                </Text>
+              )}
               <Text style={commonStyles.textSecondary}>
-                Other cards: {totalCards - (commanderCard.quantity || 1)}
+                Other cards: {totalCards - (commanderCard.quantity || 1) - partnerCommanderCards.reduce((sum, p) => sum + (p.quantity || 1), 0)}
+              </Text>
+            </View>
+          ) : partnerCommanderCards.length > 0 ? (
+            <View>
+              <Text style={[commonStyles.text, { color: colors.error, fontWeight: '600' }]}>
+                Partner Commanders: {partnerCommanderCards.map(p => p.name).join(', ')}
+              </Text>
+              <Text style={commonStyles.textSecondary}>
+                Other cards: {totalCards - partnerCommanderCards.reduce((sum, p) => sum + (p.quantity || 1), 0)}
               </Text>
             </View>
           ) : (
@@ -205,42 +282,57 @@ export default function DeckDetailScreen() {
                   borderBottomWidth: index < deck.cards.length - 1 ? 1 : 0,
                   borderBottomColor: colors.border,
                   backgroundColor: card.isCommander 
-                    ? colors.success + '20' 
+                    ? colors.warning + '20' 
+                    : card.isPartnerCommander 
+                    ? colors.error + '20' 
                     : isConflicted 
                     ? colors.conflict 
                     : 'transparent',
-                  paddingHorizontal: (card.isCommander || isConflicted) ? 8 : 0,
-                  borderRadius: (card.isCommander || isConflicted) ? 8 : 0,
-                  marginVertical: (card.isCommander || isConflicted) ? 2 : 0,
+                  paddingHorizontal: (card.isCommander || card.isPartnerCommander || isConflicted) ? 8 : 0,
+                  borderRadius: (card.isCommander || card.isPartnerCommander || isConflicted) ? 8 : 0,
+                  marginVertical: (card.isCommander || card.isPartnerCommander || isConflicted) ? 2 : 0,
                 }}
               >
                 <View style={commonStyles.row}>
                   <View style={{ flex: 1 }}>
-                    <View style={commonStyles.row}>
-                      <Text style={[commonStyles.text, { flex: 1 }]}>{card.name}</Text>
-                      {!card.isCommander && !commanderCard && (
+                    <View style={[commonStyles.row, { alignItems: 'center' }]}>
+                      {shouldShowFlag(card) && (
                         <TouchableOpacity
                           onPress={() => toggleCommander(card.id)}
                           style={{ padding: 4, marginRight: 8 }}
                         >
-                          <Icon name="flag-outline" size={18} color={colors.textSecondary} />
+                          <Icon 
+                            name={getFlagIcon(card)} 
+                            size={18} 
+                            color={getFlagColor(card)} 
+                          />
                         </TouchableOpacity>
                       )}
-                      {card.isCommander && (
-                        <TouchableOpacity
-                          onPress={() => toggleCommander(card.id)}
-                          style={{ padding: 4, marginRight: 8 }}
-                        >
-                          <Icon name="flag" size={18} color={colors.warning} />
-                        </TouchableOpacity>
-                      )}
+                      <Text 
+                        style={[
+                          commonStyles.text, 
+                          { 
+                            flex: 1,
+                            flexWrap: 'wrap',
+                            lineHeight: 20,
+                          }
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {card.name}
+                      </Text>
                       {isConflicted && (
-                        <Icon name="warning" size={16} color={colors.warning} style={{ marginRight: 8 }} />
+                        <Icon name="warning" size={16} color={colors.warning} style={{ marginLeft: 8 }} />
                       )}
                     </View>
                     {card.isCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.success }]}>
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.warning, marginLeft: 30 }]}>
                         Commander
+                      </Text>
+                    )}
+                    {card.isPartnerCommander && (
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.error, marginLeft: 30 }]}>
+                        Partner Commander
                       </Text>
                     )}
                   </View>
