@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Deck, Card, CardConflict } from '../types/deck';
 import { deckStorage } from '../data/deckStorage';
+import { scryfallService } from '../services/scryfallService';
 
 export const useDecks = () => {
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -28,12 +29,17 @@ export const useDecks = () => {
     try {
       console.log('Adding deck:', deck.name);
       
+      // Calculate color identity for the deck
+      const commanders = deck.cards.filter(card => card.isCommander || card.isPartnerCommander);
+      const colorIdentity = scryfallService.calculateDeckColorIdentity(commanders);
+      
       // Create the new deck object with temporary ID for optimistic update
       const tempDeck: Deck = {
         ...deck,
         id: `temp-${Date.now()}`,
         createdAt: new Date(),
         updatedAt: new Date(),
+        colorIdentity,
       };
       
       // Optimistic update - add deck to state immediately
@@ -43,7 +49,7 @@ export const useDecks = () => {
       });
       
       // Save to storage
-      const newDeck = await deckStorage.addDeck(deck);
+      const newDeck = await deckStorage.addDeck({ ...deck, colorIdentity });
       console.log('Deck added to storage with ID:', newDeck.id);
       
       // Replace the temporary deck with the real one
@@ -67,11 +73,18 @@ export const useDecks = () => {
     try {
       console.log('Updating deck:', deckId);
       
+      // If cards are being updated, recalculate color identity
+      let finalUpdates = { ...updates };
+      if (updates.cards) {
+        const commanders = updates.cards.filter(card => card.isCommander || card.isPartnerCommander);
+        finalUpdates.colorIdentity = scryfallService.calculateDeckColorIdentity(commanders);
+      }
+      
       // Optimistic update
       setDecks(prev => {
         const updated = prev.map(deck => 
           deck.id === deckId 
-            ? { ...deck, ...updates, updatedAt: new Date() }
+            ? { ...deck, ...finalUpdates, updatedAt: new Date() }
             : deck
         );
         console.log('Optimistic update: deck updated in state');
@@ -79,7 +92,7 @@ export const useDecks = () => {
       });
       
       // Save to storage
-      await deckStorage.updateDeck(deckId, updates);
+      await deckStorage.updateDeck(deckId, finalUpdates);
       console.log('Deck updated in storage');
     } catch (error) {
       console.log('Error updating deck:', error);
@@ -118,19 +131,65 @@ export const useDecks = () => {
     try {
       console.log('Setting active deck:', deckId);
       
-      // Optimistic update
-      setDecks(prev => {
-        const updated = prev.map(deck => ({
-          ...deck,
-          isActive: deck.id === deckId,
-          updatedAt: deck.id === deckId ? new Date() : deck.updatedAt,
-        }));
-        console.log('Optimistic update: active deck updated in state');
-        return updated;
-      });
+      // Implement single card location tracking
+      const newActiveDeck = decks.find(d => d.id === deckId);
+      const currentActiveDeck = decks.find(d => d.isActive);
       
-      // Save to storage
-      await deckStorage.setActiveDeck(deckId);
+      if (newActiveDeck && currentActiveDeck && newActiveDeck.id !== currentActiveDeck.id) {
+        // Move cards from other decks to the new active deck
+        const updatedDecks = decks.map(deck => {
+          if (deck.id === deckId) {
+            // This becomes the new active deck
+            return { ...deck, isActive: true, updatedAt: new Date() };
+          } else if (deck.isActive) {
+            // Remove active status from current active deck
+            return { ...deck, isActive: false, updatedAt: new Date() };
+          } else {
+            // For other decks, remove cards that are in the new active deck
+            const filteredCards = deck.cards.filter(card => 
+              !newActiveDeck.cards.some(activeCard => 
+                activeCard.name.toLowerCase() === card.name.toLowerCase()
+              )
+            );
+            
+            if (filteredCards.length !== deck.cards.length) {
+              console.log(`Removed ${deck.cards.length - filteredCards.length} cards from deck: ${deck.name}`);
+              return { ...deck, cards: filteredCards, updatedAt: new Date() };
+            }
+            
+            return deck;
+          }
+        });
+        
+        // Update all affected decks
+        setDecks(updatedDecks);
+        
+        // Save all changes to storage
+        for (const deck of updatedDecks) {
+          if (deck.updatedAt > (decks.find(d => d.id === deck.id)?.updatedAt || new Date(0))) {
+            await deckStorage.updateDeck(deck.id, {
+              isActive: deck.isActive,
+              cards: deck.cards,
+              updatedAt: deck.updatedAt,
+            });
+          }
+        }
+      } else {
+        // Simple active deck change without card movement
+        setDecks(prev => {
+          const updated = prev.map(deck => ({
+            ...deck,
+            isActive: deck.id === deckId,
+            updatedAt: deck.id === deckId ? new Date() : deck.updatedAt,
+          }));
+          console.log('Optimistic update: active deck updated in state');
+          return updated;
+        });
+        
+        // Save to storage
+        await deckStorage.setActiveDeck(deckId);
+      }
+      
       console.log('Active deck updated in storage');
     } catch (error) {
       console.log('Error setting active deck:', error);
@@ -138,7 +197,7 @@ export const useDecks = () => {
       await loadDecks();
       throw error;
     }
-  }, [loadDecks]);
+  }, [decks, loadDecks]);
 
   const getCardConflicts = useCallback((targetDeckId: string): CardConflict[] => {
     const targetDeck = decks.find(d => d.id === targetDeckId);
@@ -168,6 +227,16 @@ export const useDecks = () => {
     return conflicts;
   }, [decks]);
 
+  const enrichCardWithScryfall = useCallback(async (cardName: string): Promise<{ card: any; imagePath: string | null } | null> => {
+    try {
+      console.log('Enriching card with Scryfall data:', cardName);
+      return await scryfallService.getCardWithImage(cardName);
+    } catch (error) {
+      console.log('Error enriching card with Scryfall:', error);
+      return null;
+    }
+  }, []);
+
   const activeDeck = decks.find(d => d.isActive);
 
   return {
@@ -179,6 +248,7 @@ export const useDecks = () => {
     deleteDeck,
     setActiveDeck,
     getCardConflicts,
+    enrichCardWithScryfall,
     refreshDecks: loadDecks,
   };
 };

@@ -5,6 +5,10 @@ export interface Card {
   quantity: number;
   isCommander?: boolean;
   isPartnerCommander?: boolean;
+  scryfallId?: string;
+  colorIdentity?: string[];
+  imageUri?: string;
+  cachedImagePath?: string;
 }
 
 export interface Deck {
@@ -14,10 +18,22 @@ export interface Deck {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  colorIdentity?: string[];
 }
 
 export interface CardConflict {
   card: Card;
   currentDeck: string;
   conflictingDecks: string[];
+}
+
+export interface ScryfallCard {
+  id: string;
+  name: string;
+  color_identity: string[];
+  image_uris?: {
+    small: string;
+    normal: string;
+    large: string;
+  };
 }

@@ -6,13 +6,19 @@ import { useDecks } from '../../hooks/useDecks';
 import { commonStyles, colors } from '../../styles/commonStyles';
 import { Card, CardConflict } from '../../types/deck';
 import Icon from '../../components/Icon';
+import ExpandableSection from '../../components/ExpandableSection';
+import CardImageModal from '../../components/CardImageModal';
+import ColorIdentityDisplay from '../../components/ColorIdentityDisplay';
 
 export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { decks, deleteDeck, setActiveDeck, getCardConflicts, updateDeck } = useDecks();
+  const { decks, deleteDeck, setActiveDeck, getCardConflicts, updateDeck, enrichCardWithScryfall } = useDecks();
   const [conflicts, setConflicts] = useState<CardConflict[]>([]);
-  const [selectedDeckDropdown, setSelectedDeckDropdown] = useState<string | null>(null);
-  const [selectedCardDropdown, setSelectedCardDropdown] = useState<string | null>(null);
+  const [selectedCardImage, setSelectedCardImage] = useState<{
+    cardName: string;
+    imagePath: string | null;
+  } | null>(null);
+  const [loadingCardImage, setLoadingCardImage] = useState(false);
 
   const deck = decks.find(d => d.id === id);
 
@@ -70,6 +76,34 @@ export default function DeckDetailScreen() {
       } catch (error) {
         console.log('Error setting active deck:', error);
       }
+    }
+  };
+
+  const handleCardPress = async (cardName: string) => {
+    console.log('Card pressed:', cardName);
+    setLoadingCardImage(true);
+    
+    try {
+      const result = await enrichCardWithScryfall(cardName);
+      if (result) {
+        setSelectedCardImage({
+          cardName,
+          imagePath: result.imagePath,
+        });
+      } else {
+        setSelectedCardImage({
+          cardName,
+          imagePath: null,
+        });
+      }
+    } catch (error) {
+      console.log('Error loading card image:', error);
+      setSelectedCardImage({
+        cardName,
+        imagePath: null,
+      });
+    } finally {
+      setLoadingCardImage(false);
     }
   };
 
@@ -182,6 +216,17 @@ export default function DeckDetailScreen() {
     return colors.textSecondary;
   };
 
+  // Group conflicts by deck for expandable sections
+  const conflictsByDeck = conflicts.reduce((acc, conflict) => {
+    conflict.conflictingDecks.forEach(deckName => {
+      if (!acc[deckName]) {
+        acc[deckName] = [];
+      }
+      acc[deckName].push(conflict);
+    });
+    return acc;
+  }, {} as Record<string, CardConflict[]>);
+
   return (
     <View style={commonStyles.container}>
       <View style={[commonStyles.section, { paddingTop: 20 }]}>
@@ -194,7 +239,12 @@ export default function DeckDetailScreen() {
           </TouchableOpacity>
           
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[commonStyles.title, { fontSize: 20 }]}>{deck.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[commonStyles.title, { fontSize: 20, marginRight: 8 }]}>{deck.name}</Text>
+              {deck.colorIdentity && deck.colorIdentity.length > 0 && (
+                <ColorIdentityDisplay colorIdentity={deck.colorIdentity} size={24} />
+              )}
+            </View>
           </View>
           
           <TouchableOpacity
@@ -269,182 +319,63 @@ export default function DeckDetailScreen() {
               Card Conflicts
             </Text>
             <Text style={[commonStyles.textSecondary, { marginBottom: 16 }]}>
-              {conflicts.length} cards are missing and found in {[...new Set(conflicts.flatMap(c => c.conflictingDecks))].length} other decks
+              {conflicts.length} cards missing, found in {Object.keys(conflictsByDeck).length} other decks
             </Text>
             
-            {/* Deck Dropdown */}
+            {/* Expandable sections by deck */}
             <View style={{ marginBottom: 16 }}>
               <Text style={[commonStyles.text, { fontWeight: '600', marginBottom: 8 }]}>
-                View by Deck:
+                Conflicts by Deck:
               </Text>
-              <TouchableOpacity
-                style={{
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  borderRadius: 8,
-                  padding: 12,
-                  backgroundColor: colors.background,
-                }}
-                onPress={() => setSelectedDeckDropdown(selectedDeckDropdown ? null : 'open')}
-              >
-                <View style={commonStyles.row}>
-                  <Text style={commonStyles.text}>
-                    {selectedDeckDropdown && selectedDeckDropdown !== 'open' 
-                      ? `Deck: ${selectedDeckDropdown}` 
-                      : 'Select a deck to view conflicted cards'}
-                  </Text>
-                  <Icon 
-                    name={selectedDeckDropdown === 'open' ? "chevron-up" : "chevron-down"} 
-                    size={20} 
-                    color={colors.textSecondary} 
-                  />
-                </View>
-              </TouchableOpacity>
-              
-              {selectedDeckDropdown === 'open' && (
-                <View style={{
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  borderTopWidth: 0,
-                  borderRadius: 8,
-                  borderTopLeftRadius: 0,
-                  borderTopRightRadius: 0,
-                  backgroundColor: colors.background,
-                  maxHeight: 200,
-                }}>
-                  <ScrollView style={{ maxHeight: 200 }}>
-                    {[...new Set(conflicts.flatMap(c => c.conflictingDecks))].map((deckName, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={{
-                          padding: 12,
-                          borderBottomWidth: index < [...new Set(conflicts.flatMap(c => c.conflictingDecks))].length - 1 ? 1 : 0,
-                          borderBottomColor: colors.border,
-                        }}
-                        onPress={() => setSelectedDeckDropdown(deckName)}
-                      >
-                        <Text style={commonStyles.text}>{deckName}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-              
-              {selectedDeckDropdown && selectedDeckDropdown !== 'open' && (
-                <View style={{
-                  marginTop: 8,
-                  padding: 12,
-                  backgroundColor: colors.backgroundAlt,
-                  borderRadius: 8,
-                }}>
-                  <Text style={[commonStyles.text, { fontWeight: '600', marginBottom: 8 }]}>
-                    Conflicted cards in {selectedDeckDropdown}:
-                  </Text>
-                  {conflicts
-                    .filter(c => c.conflictingDecks.includes(selectedDeckDropdown))
-                    .map((conflict, index) => (
-                      <Text key={index} style={[commonStyles.textSecondary, { marginBottom: 4 }]}>
-                        • {conflict.card.name}
-                      </Text>
-                    ))}
-                </View>
-              )}
+              {Object.entries(conflictsByDeck).map(([deckName, deckConflicts]) => (
+                <ExpandableSection
+                  key={deckName}
+                  title={`${deckName} (${deckConflicts.length} cards)`}
+                  style={{ marginBottom: 8 }}
+                >
+                  {deckConflicts.map((conflict, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => handleCardPress(conflict.card.name)}
+                      style={{
+                        paddingVertical: 8,
+                        borderBottomWidth: index < deckConflicts.length - 1 ? 1 : 0,
+                        borderBottomColor: colors.border,
+                      }}
+                    >
+                      <Text style={commonStyles.text}>• {conflict.card.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ExpandableSection>
+              ))}
             </View>
 
-            {/* Card Dropdown */}
-            <View>
-              <Text style={[commonStyles.text, { fontWeight: '600', marginBottom: 8 }]}>
-                View by Card:
-              </Text>
-              <TouchableOpacity
-                style={{
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  borderRadius: 8,
-                  padding: 12,
-                  backgroundColor: colors.background,
-                }}
-                onPress={() => setSelectedCardDropdown(selectedCardDropdown ? null : 'open')}
-              >
-                <View style={commonStyles.row}>
-                  <Text style={commonStyles.text}>
-                    {selectedCardDropdown && selectedCardDropdown !== 'open' 
-                      ? `Card: ${selectedCardDropdown}` 
-                      : 'Select a card to view conflicting decks'}
-                  </Text>
-                  <Icon 
-                    name={selectedCardDropdown === 'open' ? "chevron-up" : "chevron-down"} 
-                    size={20} 
-                    color={colors.textSecondary} 
-                  />
-                </View>
-              </TouchableOpacity>
-              
-              {selectedCardDropdown === 'open' && (
-                <View style={{
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  borderTopWidth: 0,
-                  borderRadius: 8,
-                  borderTopLeftRadius: 0,
-                  borderTopRightRadius: 0,
-                  backgroundColor: colors.background,
-                  maxHeight: 200,
-                }}>
-                  <ScrollView style={{ maxHeight: 200 }}>
-                    {conflicts.map((conflict, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={{
-                          padding: 12,
-                          borderBottomWidth: index < conflicts.length - 1 ? 1 : 0,
+            {/* Expandable section by cards */}
+            <ExpandableSection title="Conflicts by Card">
+              {conflicts.map((conflict, index) => (
+                <ExpandableSection
+                  key={index}
+                  title={`${conflict.card.name} (${conflict.conflictingDecks.length} decks)`}
+                  style={{ marginBottom: 8 }}
+                >
+                  {conflict.conflictingDecks.map((deckName, deckIndex) => (
+                    <Text
+                      key={deckIndex}
+                      style={[
+                        commonStyles.textSecondary,
+                        {
+                          paddingVertical: 4,
+                          borderBottomWidth: deckIndex < conflict.conflictingDecks.length - 1 ? 1 : 0,
                           borderBottomColor: colors.border,
-                        }}
-                        onPress={() => setSelectedCardDropdown(conflict.card.name)}
-                      >
-                        <View style={commonStyles.row}>
-                          <Text style={commonStyles.text}>{conflict.card.name}</Text>
-                          <View style={{
-                            backgroundColor: colors.warning,
-                            borderRadius: 10,
-                            paddingHorizontal: 6,
-                            paddingVertical: 2,
-                          }}>
-                            <Text style={{
-                              color: colors.background,
-                              fontSize: 10,
-                              fontWeight: '600',
-                            }}>
-                              {conflict.conflictingDecks.length}
-                            </Text>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-              
-              {selectedCardDropdown && selectedCardDropdown !== 'open' && (
-                <View style={{
-                  marginTop: 8,
-                  padding: 12,
-                  backgroundColor: colors.backgroundAlt,
-                  borderRadius: 8,
-                }}>
-                  <Text style={[commonStyles.text, { fontWeight: '600', marginBottom: 8 }]}>
-                    {selectedCardDropdown} is found in:
-                  </Text>
-                  {conflicts
-                    .find(c => c.card.name === selectedCardDropdown)
-                    ?.conflictingDecks.map((deckName, index) => (
-                      <Text key={index} style={[commonStyles.textSecondary, { marginBottom: 4 }]}>
-                        • {deckName}
-                      </Text>
-                    ))}
-                </View>
-              )}
-            </View>
+                        },
+                      ]}
+                    >
+                      • {deckName}
+                    </Text>
+                  ))}
+                </ExpandableSection>
+              ))}
+            </ExpandableSection>
           </View>
         )}
 
@@ -490,19 +421,26 @@ export default function DeckDetailScreen() {
                           />
                         </TouchableOpacity>
                       )}
-                      <Text 
-                        style={[
-                          commonStyles.text, 
-                          { 
-                            flex: 1,
-                            flexWrap: 'wrap',
-                            lineHeight: 20,
-                          }
-                        ]}
-                        numberOfLines={2}
+                      <TouchableOpacity
+                        onPress={() => handleCardPress(card.name)}
+                        style={{ flex: 1 }}
                       >
-                        {card.name}
-                      </Text>
+                        <Text 
+                          style={[
+                            commonStyles.text, 
+                            { 
+                              flex: 1,
+                              flexWrap: 'wrap',
+                              lineHeight: 20,
+                              textDecorationLine: 'underline',
+                              color: colors.primary,
+                            }
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {card.name}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                     {card.isCommander && (
                       <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.warning, marginLeft: 30 }]}>
@@ -573,6 +511,14 @@ export default function DeckDetailScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <CardImageModal
+        visible={selectedCardImage !== null}
+        onClose={() => setSelectedCardImage(null)}
+        imagePath={selectedCardImage?.imagePath || null}
+        cardName={selectedCardImage?.cardName || ''}
+        loading={loadingCardImage}
+      />
     </View>
   );
 }
