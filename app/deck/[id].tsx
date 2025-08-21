@@ -23,22 +23,36 @@ export default function DeckDetailScreen() {
   }, [deck, decks]);
 
   const handleDelete = () => {
+    console.log('Delete button pressed for deck:', deck?.name);
+    
+    if (!deck) {
+      console.log('No deck found, cannot delete');
+      return;
+    }
+
+    console.log('Showing delete confirmation alert');
+    
     Alert.alert(
       'Delete Deck',
-      `Are you sure you want to delete "${deck?.name}"?`,
+      `Are you sure you want to delete "${deck.name}"? This action cannot be undone.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Cancel', 
+          style: 'cancel',
+          onPress: () => console.log('Delete cancelled')
+        },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            if (deck) {
-              try {
-                await deleteDeck(deck.id);
-                router.back();
-              } catch (error) {
-                console.log('Error deleting deck:', error);
-              }
+            console.log('Delete confirmed, proceeding with deletion');
+            try {
+              await deleteDeck(deck.id);
+              console.log('Deck deleted successfully, navigating back');
+              router.back();
+            } catch (error) {
+              console.log('Error deleting deck:', error);
+              Alert.alert('Error', 'Failed to delete deck. Please try again.');
             }
           },
         },
