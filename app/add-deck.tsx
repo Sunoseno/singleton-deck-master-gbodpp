@@ -16,6 +16,8 @@ export default function AddDeckScreen() {
   const [newCardName, setNewCardName] = useState('');
   const [newCardManaCost, setNewCardManaCost] = useState('');
   const [newCardType, setNewCardType] = useState('');
+  const [decklistText, setDecklistText] = useState('');
+  const [showImportSection, setShowImportSection] = useState(false);
 
   const addCard = () => {
     if (!newCardName.trim()) {
@@ -39,6 +41,87 @@ export default function AddDeckScreen() {
 
   const removeCard = (cardId: string) => {
     setCards(prev => prev.filter(card => card.id !== cardId));
+  };
+
+  const parseDecklistText = (text: string): Card[] => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const parsedCards: Card[] = [];
+    
+    console.log('Parsing decklist with', lines.length, 'lines');
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
+      
+      // Match pattern: number followed by space and card name
+      // Examples: "1 Arena of Glory", "2 Lightning Bolt", "10 Mountain"
+      const match = trimmedLine.match(/^(\d+)\s+(.+)$/);
+      
+      if (match) {
+        const quantity = parseInt(match[1], 10);
+        const cardName = match[2].trim();
+        
+        console.log(`Parsed: ${quantity}x ${cardName}`);
+        
+        // Add the card the specified number of times
+        for (let i = 0; i < quantity; i++) {
+          const card: Card = {
+            id: `${Date.now()}-${Math.random()}-${i}`,
+            name: cardName,
+          };
+          parsedCards.push(card);
+        }
+      } else {
+        console.log('Could not parse line:', trimmedLine);
+      }
+    }
+    
+    return parsedCards;
+  };
+
+  const handleImportDecklist = () => {
+    if (!decklistText.trim()) {
+      Alert.alert('Error', 'Please paste your decklist text');
+      return;
+    }
+
+    try {
+      const importedCards = parseDecklistText(decklistText);
+      
+      if (importedCards.length === 0) {
+        Alert.alert('Error', 'No cards could be parsed from the text. Please check the format.');
+        return;
+      }
+
+      // Add imported cards to existing cards
+      setCards(prev => [...prev, ...importedCards]);
+      setDecklistText('');
+      setShowImportSection(false);
+      
+      console.log(`Imported ${importedCards.length} cards`);
+      Alert.alert('Success', `Imported ${importedCards.length} cards to your deck!`);
+    } catch (error) {
+      console.log('Error importing decklist:', error);
+      Alert.alert('Error', 'Failed to import decklist. Please check the format.');
+    }
+  };
+
+  const clearAllCards = () => {
+    Alert.alert(
+      'Clear All Cards',
+      'Are you sure you want to remove all cards from this deck?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Clear All', 
+          style: 'destructive',
+          onPress: () => {
+            setCards([]);
+            console.log('Cleared all cards');
+          }
+        },
+      ]
+    );
   };
 
   const handleSave = async () => {
@@ -148,8 +231,79 @@ export default function AddDeckScreen() {
         </View>
 
         <View style={commonStyles.card}>
+          <View style={commonStyles.row}>
+            <Text style={[commonStyles.subtitle, { flex: 1 }]}>
+              Import Decklist
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowImportSection(!showImportSection)}
+              style={{ padding: 4 }}
+            >
+              <Icon 
+                name={showImportSection ? "chevron-up" : "chevron-down"} 
+                size={20} 
+                color={colors.primary} 
+              />
+            </TouchableOpacity>
+          </View>
+          
+          {showImportSection && (
+            <View style={{ marginTop: 12 }}>
+              <Text style={[commonStyles.text, { marginBottom: 8 }]}>
+                Paste Decklist Text
+              </Text>
+              <Text style={[commonStyles.textSecondary, { fontSize: 12, marginBottom: 8 }]}>
+                Format: "1 Arena of Glory{'\n'}1 Battle Hymn{'\n'}2 Lightning Bolt"
+              </Text>
+              <TextInput
+                style={[commonStyles.input, { height: 120, textAlignVertical: 'top' }]}
+                value={decklistText}
+                onChangeText={setDecklistText}
+                placeholder="1 Arena of Glory&#10;1 Battle Hymn&#10;1 Beetleback Chief&#10;..."
+                placeholderTextColor={colors.textSecondary}
+                multiline
+              />
+              
+              <View style={commonStyles.row}>
+                <TouchableOpacity
+                  onPress={handleImportDecklist}
+                  style={{
+                    backgroundColor: colors.primary,
+                    paddingVertical: 12,
+                    paddingHorizontal: 24,
+                    borderRadius: 8,
+                    alignItems: 'center',
+                    flex: 1,
+                    marginRight: 8,
+                  }}
+                >
+                  <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600' }}>
+                    Import Cards
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  onPress={() => setDecklistText('')}
+                  style={{
+                    backgroundColor: colors.border,
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderRadius: 8,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: colors.text, fontSize: 16 }}>
+                    Clear
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <View style={commonStyles.card}>
           <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>
-            Add Cards ({cards.length}/99)
+            Add Individual Cards ({cards.length}/99)
           </Text>
           
           <Text style={[commonStyles.text, { marginBottom: 8 }]}>Card Name</Text>
@@ -198,9 +352,18 @@ export default function AddDeckScreen() {
 
         {cards.length > 0 && (
           <View style={commonStyles.card}>
-            <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>
-              Cards in Deck ({cards.length})
-            </Text>
+            <View style={commonStyles.row}>
+              <Text style={[commonStyles.subtitle, { flex: 1 }]}>
+                Cards in Deck ({cards.length})
+              </Text>
+              <TouchableOpacity
+                onPress={clearAllCards}
+                style={{ padding: 4 }}
+              >
+                <Icon name="trash" size={20} color={colors.error} />
+              </TouchableOpacity>
+            </View>
+            
             {cards.map((card, index) => (
               <View
                 key={card.id}
