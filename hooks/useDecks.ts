@@ -27,77 +27,118 @@ export const useDecks = () => {
   const addDeck = useCallback(async (deck: Omit<Deck, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       console.log('Adding deck:', deck.name);
+      
+      // Create the new deck object with temporary ID for optimistic update
+      const tempDeck: Deck = {
+        ...deck,
+        id: `temp-${Date.now()}`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      // Optimistic update - add deck to state immediately
+      setDecks(prev => {
+        console.log('Optimistic update: adding deck to state');
+        return [...prev, tempDeck];
+      });
+      
+      // Save to storage
       const newDeck = await deckStorage.addDeck(deck);
-      console.log('Deck added to storage, updating state');
+      console.log('Deck added to storage with ID:', newDeck.id);
       
-      // Force a fresh load from storage to ensure consistency
-      await loadDecks();
+      // Replace the temporary deck with the real one
+      setDecks(prev => {
+        const updated = prev.map(d => d.id === tempDeck.id ? newDeck : d);
+        console.log('Replaced temporary deck with real deck');
+        return updated;
+      });
       
-      console.log('State updated after adding deck');
+      console.log('Deck addition completed successfully');
       return newDeck;
     } catch (error) {
       console.log('Error adding deck:', error);
+      // Rollback optimistic update on error
+      setDecks(prev => prev.filter(d => !d.id.startsWith('temp-')));
       throw error;
     }
-  }, [loadDecks]);
+  }, []);
 
   const updateDeck = useCallback(async (deckId: string, updates: Partial<Deck>) => {
     try {
       console.log('Updating deck:', deckId);
-      await deckStorage.updateDeck(deckId, updates);
       
-      // Update local state immediately
+      // Optimistic update
       setDecks(prev => {
         const updated = prev.map(deck => 
           deck.id === deckId 
             ? { ...deck, ...updates, updatedAt: new Date() }
             : deck
         );
-        console.log('Local state updated for deck:', deckId);
+        console.log('Optimistic update: deck updated in state');
         return updated;
       });
+      
+      // Save to storage
+      await deckStorage.updateDeck(deckId, updates);
+      console.log('Deck updated in storage');
     } catch (error) {
       console.log('Error updating deck:', error);
-      throw error;
-    }
-  }, []);
-
-  const deleteDeck = useCallback(async (deckId: string) => {
-    try {
-      console.log('Deleting deck:', deckId);
-      await deckStorage.deleteDeck(deckId);
-      console.log('Deck deleted from storage, updating state');
-      
-      // Force a fresh load from storage to ensure consistency
+      // Rollback optimistic update on error
       await loadDecks();
-      
-      console.log('State updated after deleting deck');
-    } catch (error) {
-      console.log('Error deleting deck:', error);
       throw error;
     }
   }, [loadDecks]);
 
+  const deleteDeck = useCallback(async (deckId: string) => {
+    try {
+      console.log('Deleting deck:', deckId);
+      
+      // Store the deck for potential rollback
+      const deckToDelete = decks.find(d => d.id === deckId);
+      
+      // Optimistic update - remove deck from state immediately
+      setDecks(prev => {
+        const updated = prev.filter(deck => deck.id !== deckId);
+        console.log('Optimistic update: deck removed from state');
+        return updated;
+      });
+      
+      // Delete from storage
+      await deckStorage.deleteDeck(deckId);
+      console.log('Deck deleted from storage');
+    } catch (error) {
+      console.log('Error deleting deck:', error);
+      // Rollback optimistic update on error
+      await loadDecks();
+      throw error;
+    }
+  }, [decks, loadDecks]);
+
   const setActiveDeck = useCallback(async (deckId: string) => {
     try {
       console.log('Setting active deck:', deckId);
-      await deckStorage.setActiveDeck(deckId);
       
-      // Update local state immediately
+      // Optimistic update
       setDecks(prev => {
         const updated = prev.map(deck => ({
           ...deck,
           isActive: deck.id === deckId,
           updatedAt: deck.id === deckId ? new Date() : deck.updatedAt,
         }));
-        console.log('Local state updated for active deck:', deckId);
+        console.log('Optimistic update: active deck updated in state');
         return updated;
       });
+      
+      // Save to storage
+      await deckStorage.setActiveDeck(deckId);
+      console.log('Active deck updated in storage');
     } catch (error) {
       console.log('Error setting active deck:', error);
+      // Rollback optimistic update on error
+      await loadDecks();
       throw error;
     }
-  }, []);
+  }, [loadDecks]);
 
   const getCardConflicts = useCallback((targetDeckId: string): CardConflict[] => {
     const targetDeck = decks.find(d => d.id === targetDeckId);

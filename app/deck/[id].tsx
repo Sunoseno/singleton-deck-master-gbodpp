@@ -49,7 +49,7 @@ export default function DeckDetailScreen() {
             try {
               await deleteDeck(deck.id);
               console.log('Deck deleted successfully, navigating back');
-              router.back();
+              router.replace('/');
             } catch (error) {
               console.log('Error deleting deck:', error);
               Alert.alert('Error', 'Failed to delete deck. Please try again.');

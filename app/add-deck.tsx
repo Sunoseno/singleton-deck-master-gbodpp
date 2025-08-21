@@ -263,18 +263,22 @@ export default function AddDeckScreen() {
 
   const saveDeck = async () => {
     try {
-      console.log('Saving deck:', deckName);
-      await addDeck({
+      console.log('Starting deck save process for:', deckName);
+      
+      const newDeck = await addDeck({
         name: deckName.trim(),
         cards,
         isActive: false,
       });
 
-      console.log('Deck saved successfully, navigating back');
-      router.back();
+      console.log('Deck saved successfully with ID:', newDeck.id);
+      console.log('Navigating back to main screen');
+      
+      // Use replace instead of back to ensure proper navigation
+      router.replace('/');
     } catch (error) {
       console.log('Error saving deck:', error);
-      Alert.alert('Error', 'Failed to save deck');
+      Alert.alert('Error', 'Failed to save deck. Please try again.');
     }
   };
 
