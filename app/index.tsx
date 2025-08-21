@@ -75,11 +75,11 @@ export default function DeckListScreen() {
                     </View>
                     
                     {commanderCard ? (
-                      <Text style={[commonStyles.textSecondary, { color: colors.warning }]}>
+                      <Text style={[commonStyles.textSecondary, { color: colors.commander }]}>
                         Commander: {commanderCard.name}
                       </Text>
                     ) : partnerCommanderCards.length > 0 ? (
-                      <Text style={[commonStyles.textSecondary, { color: colors.error }]}>
+                      <Text style={[commonStyles.textSecondary, { color: colors.partnerCommander }]}>
                         Partners: {partnerCommanderCards.map(p => p.name).join(', ')}
                       </Text>
                     ) : (

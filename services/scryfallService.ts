@@ -156,8 +156,9 @@ class ScryfallService {
       }
 
       let imagePath: string | null = null;
-      if (card.image_uris?.small) {
-        imagePath = await this.downloadAndCacheImage(card.image_uris.small, cardName);
+      // FIXED: Use higher resolution 'normal' instead of 'small'
+      if (card.image_uris?.normal) {
+        imagePath = await this.downloadAndCacheImage(card.image_uris.normal, cardName);
       }
 
       return { card, imagePath };

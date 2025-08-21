@@ -21,8 +21,8 @@ export default function EditDeckScreen() {
   useEffect(() => {
     if (deck) {
       setDeckName(deck.name);
-      // Sort existing cards alphabetically
-      setCards([...deck.cards].sort((a, b) => a.name.localeCompare(b.name)));
+      setCards([...deck.cards]);
+      console.log('Loaded deck for editing:', deck.name);
     }
   }, [deck]);
 
@@ -208,27 +208,45 @@ export default function EditDeckScreen() {
   };
 
   const handleSave = async () => {
-    if (!deckName.trim()) {
-      Alert.alert('Error', 'Please enter a deck name');
-      return;
-    }
-
     if (!deck) {
       Alert.alert('Error', 'Deck not found');
       return;
     }
 
+    if (!deckName.trim()) {
+      Alert.alert('Error', 'Please enter a deck name');
+      return;
+    }
+
+    if (cards.length === 0) {
+      Alert.alert('Error', 'Please add at least one card to the deck');
+      return;
+    }
+
+    const totalCards = cards.reduce((sum, card) => sum + card.quantity, 0);
+    const commanderCards = cards.filter(card => card.isCommander);
+    const partnerCommanderCards = cards.filter(card => card.isPartnerCommander);
+
+    if (commanderCards.length > 1 || partnerCommanderCards.length > 2) {
+      Alert.alert('Error', 'A deck can only have one commander and up to one partner commander');
+      return;
+    }
+
     try {
+      console.log('Saving deck changes for:', deckName);
+      
       await updateDeck(deck.id, {
         name: deckName.trim(),
         cards,
       });
 
-      console.log('Deck updated successfully:', deckName);
+      console.log('Deck updated successfully');
+      console.log('Navigating back to deck detail');
+      
       router.back();
     } catch (error) {
       console.log('Error updating deck:', error);
-      Alert.alert('Error', 'Failed to update deck');
+      Alert.alert('Error', 'Failed to save deck changes. Please try again.');
     }
   };
 
@@ -260,9 +278,10 @@ export default function EditDeckScreen() {
     return "flag-outline";
   };
 
+  // FIXED: Use distinct colors for different card types
   const getFlagColor = (card: Card) => {
-    if (card.isCommander) return colors.warning; // Orange
-    if (card.isPartnerCommander) return colors.error; // Red
+    if (card.isCommander) return colors.commander; // Orange
+    if (card.isPartnerCommander) return colors.partnerCommander; // Red
     return colors.textSecondary;
   };
 
@@ -271,7 +290,10 @@ export default function EditDeckScreen() {
       <View style={[commonStyles.section, { paddingTop: 20 }]}>
         <View style={commonStyles.row}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => {
+              console.log('Navigating back from edit deck');
+              router.back();
+            }}
             style={{ padding: 8, marginLeft: -8 }}
           >
             <Icon name="arrow-back" size={24} color={colors.text} />
@@ -434,9 +456,9 @@ export default function EditDeckScreen() {
                   borderBottomWidth: index < cards.length - 1 ? 1 : 0,
                   borderBottomColor: colors.border,
                   backgroundColor: card.isCommander 
-                    ? colors.warning + '20' 
+                    ? colors.commander + '20' 
                     : card.isPartnerCommander 
-                    ? colors.error + '20' 
+                    ? colors.partnerCommander + '20' 
                     : 'transparent',
                   paddingHorizontal: (card.isCommander || card.isPartnerCommander) ? 8 : 0,
                   borderRadius: (card.isCommander || card.isPartnerCommander) ? 8 : 0,
@@ -473,12 +495,12 @@ export default function EditDeckScreen() {
                       </Text>
                     </View>
                     {card.isCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.warning, marginLeft: 30 }]}>
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.commander, marginLeft: 30 }]}>
                         Commander
                       </Text>
                     )}
                     {card.isPartnerCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.error, marginLeft: 30 }]}>
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.partnerCommander, marginLeft: 30 }]}>
                         Partner Commander
                       </Text>
                     )}

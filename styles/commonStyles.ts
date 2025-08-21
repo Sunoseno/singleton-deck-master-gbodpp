@@ -16,6 +16,11 @@ export const colors = {
   border: '#E0E0E0',     // Light border
   active: '#2E7D32',     // Green for active state
   conflict: '#E3F2FD',   // Light blue for conflicts
+  // FIXED: New distinct colors for different card states
+  commander: '#FF9800',  // Orange for commander
+  partnerCommander: '#F44336', // Red for partner commander
+  conflictedCard: '#2196F3',   // Blue for conflicted cards
+  conflictedCardBg: '#E3F2FD', // Light blue background for conflicted cards
 };
 
 export const buttonStyles = StyleSheet.create({
@@ -136,14 +141,14 @@ export const commonStyles = StyleSheet.create({
     elevation: 4,
   },
   conflictCard: {
-    backgroundColor: colors.conflict,
-    borderColor: colors.warning,
+    backgroundColor: colors.conflictedCardBg,
+    borderColor: colors.conflictedCard,
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
     marginVertical: 8,
     width: '100%',
-    boxShadow: '0px 2px 8px rgba(255, 152, 0, 0.2)',
+    boxShadow: '0px 2px 8px rgba(33, 150, 243, 0.2)',
     elevation: 2,
   },
   row: {

@@ -265,10 +265,11 @@ export default function AddDeckScreen() {
     try {
       console.log('Starting deck save process for:', deckName);
       
+      // FIXED: Remove isActive from here since it's now handled in addDeck
       const newDeck = await addDeck({
         name: deckName.trim(),
         cards,
-        isActive: false,
+        isActive: false, // This will be overridden in addDeck to true
       });
 
       console.log('Deck saved successfully with ID:', newDeck.id);
@@ -302,9 +303,10 @@ export default function AddDeckScreen() {
     return "flag-outline";
   };
 
+  // FIXED: Use distinct colors for different card types
   const getFlagColor = (card: Card) => {
-    if (card.isCommander) return colors.warning; // Orange
-    if (card.isPartnerCommander) return colors.error; // Red
+    if (card.isCommander) return colors.commander; // Orange
+    if (card.isPartnerCommander) return colors.partnerCommander; // Red
     return colors.textSecondary;
   };
 
@@ -485,9 +487,9 @@ export default function AddDeckScreen() {
                   borderBottomWidth: index < cards.length - 1 ? 1 : 0,
                   borderBottomColor: colors.border,
                   backgroundColor: card.isCommander 
-                    ? colors.warning + '20' 
+                    ? colors.commander + '20' 
                     : card.isPartnerCommander 
-                    ? colors.error + '20' 
+                    ? colors.partnerCommander + '20' 
                     : 'transparent',
                   paddingHorizontal: (card.isCommander || card.isPartnerCommander) ? 8 : 0,
                   borderRadius: (card.isCommander || card.isPartnerCommander) ? 8 : 0,
@@ -524,12 +526,12 @@ export default function AddDeckScreen() {
                       </Text>
                     </View>
                     {card.isCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.warning, marginLeft: 30 }]}>
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.commander, marginLeft: 30 }]}>
                         Commander
                       </Text>
                     )}
                     {card.isPartnerCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.error, marginLeft: 30 }]}>
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.partnerCommander, marginLeft: 30 }]}>
                         Partner Commander
                       </Text>
                     )}

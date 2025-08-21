@@ -34,28 +34,39 @@ export const useDecks = () => {
       const colorIdentity = scryfallService.calculateDeckColorIdentity(commanders);
       
       // Create the new deck object with temporary ID for optimistic update
+      // NEW: Set new deck as active by default
       const tempDeck: Deck = {
         ...deck,
         id: `temp-${Date.now()}`,
         createdAt: new Date(),
         updatedAt: new Date(),
         colorIdentity,
+        isActive: true, // NEW: Auto-activate new decks
       };
       
-      // Optimistic update - add deck to state immediately
+      // Optimistic update - add deck to state immediately and deactivate others
       setDecks(prev => {
-        console.log('Optimistic update: adding deck to state');
-        return [...prev, tempDeck];
+        console.log('Optimistic update: adding deck to state and setting as active');
+        const updatedDecks = prev.map(d => ({ ...d, isActive: false })); // Deactivate all existing decks
+        return [...updatedDecks, tempDeck];
       });
       
       // Save to storage
-      const newDeck = await deckStorage.addDeck({ ...deck, colorIdentity });
+      const newDeck = await deckStorage.addDeck({ ...deck, colorIdentity, isActive: true });
       console.log('Deck added to storage with ID:', newDeck.id);
+      
+      // Deactivate all other decks in storage
+      const allDecks = await deckStorage.getDecks();
+      for (const existingDeck of allDecks) {
+        if (existingDeck.id !== newDeck.id && existingDeck.isActive) {
+          await deckStorage.updateDeck(existingDeck.id, { isActive: false });
+        }
+      }
       
       // Replace the temporary deck with the real one
       setDecks(prev => {
-        const updated = prev.map(d => d.id === tempDeck.id ? newDeck : d);
-        console.log('Replaced temporary deck with real deck');
+        const updated = prev.map(d => d.id === tempDeck.id ? newDeck : { ...d, isActive: false });
+        console.log('Replaced temporary deck with real deck and deactivated others');
         return updated;
       });
       
@@ -131,63 +142,28 @@ export const useDecks = () => {
     try {
       console.log('Setting active deck:', deckId);
       
-      // Implement single card location tracking
-      const newActiveDeck = decks.find(d => d.id === deckId);
-      const currentActiveDeck = decks.find(d => d.isActive);
+      // FIXED: Simply change active status without moving cards
+      // Cards stay in their original decks, we just track which deck is "active"
+      setDecks(prev => {
+        const updated = prev.map(deck => ({
+          ...deck,
+          isActive: deck.id === deckId,
+          updatedAt: deck.id === deckId ? new Date() : deck.updatedAt,
+        }));
+        console.log('Optimistic update: active deck updated in state');
+        return updated;
+      });
       
-      if (newActiveDeck && currentActiveDeck && newActiveDeck.id !== currentActiveDeck.id) {
-        // Move cards from other decks to the new active deck
-        const updatedDecks = decks.map(deck => {
-          if (deck.id === deckId) {
-            // This becomes the new active deck
-            return { ...deck, isActive: true, updatedAt: new Date() };
-          } else if (deck.isActive) {
-            // Remove active status from current active deck
-            return { ...deck, isActive: false, updatedAt: new Date() };
-          } else {
-            // For other decks, remove cards that are in the new active deck
-            const filteredCards = deck.cards.filter(card => 
-              !newActiveDeck.cards.some(activeCard => 
-                activeCard.name.toLowerCase() === card.name.toLowerCase()
-              )
-            );
-            
-            if (filteredCards.length !== deck.cards.length) {
-              console.log(`Removed ${deck.cards.length - filteredCards.length} cards from deck: ${deck.name}`);
-              return { ...deck, cards: filteredCards, updatedAt: new Date() };
-            }
-            
-            return deck;
-          }
-        });
-        
-        // Update all affected decks
-        setDecks(updatedDecks);
-        
-        // Save all changes to storage
-        for (const deck of updatedDecks) {
-          if (deck.updatedAt > (decks.find(d => d.id === deck.id)?.updatedAt || new Date(0))) {
-            await deckStorage.updateDeck(deck.id, {
-              isActive: deck.isActive,
-              cards: deck.cards,
-              updatedAt: deck.updatedAt,
-            });
-          }
+      // Save to storage - update all decks' active status
+      const allDecks = await deckStorage.getDecks();
+      for (const deck of allDecks) {
+        const shouldBeActive = deck.id === deckId;
+        if (deck.isActive !== shouldBeActive) {
+          await deckStorage.updateDeck(deck.id, { 
+            isActive: shouldBeActive,
+            updatedAt: shouldBeActive ? new Date() : deck.updatedAt 
+          });
         }
-      } else {
-        // Simple active deck change without card movement
-        setDecks(prev => {
-          const updated = prev.map(deck => ({
-            ...deck,
-            isActive: deck.id === deckId,
-            updatedAt: deck.id === deckId ? new Date() : deck.updatedAt,
-          }));
-          console.log('Optimistic update: active deck updated in state');
-          return updated;
-        });
-        
-        // Save to storage
-        await deckStorage.setActiveDeck(deckId);
       }
       
       console.log('Active deck updated in storage');
@@ -197,29 +173,46 @@ export const useDecks = () => {
       await loadDecks();
       throw error;
     }
-  }, [decks, loadDecks]);
+  }, [loadDecks]);
 
+  // FIXED: New logic for determining card conflicts
   const getCardConflicts = useCallback((targetDeckId: string): CardConflict[] => {
     const targetDeck = decks.find(d => d.id === targetDeckId);
     const activeDeck = decks.find(d => d.isActive);
     
-    if (!targetDeck || !activeDeck || targetDeck.id === activeDeck.id) {
-      return [];
+    if (!targetDeck || targetDeck.isActive) {
+      return []; // No conflicts if this is the active deck
     }
 
     const conflicts: CardConflict[] = [];
-    const allOtherDecks = decks.filter(d => d.id !== targetDeckId);
 
     targetDeck.cards.forEach(card => {
-      const conflictingDecks = allOtherDecks
-        .filter(deck => deck.cards.some(c => c.name.toLowerCase() === card.name.toLowerCase()))
-        .map(deck => deck.name);
+      // Find which other decks contain this card
+      const decksWithThisCard = decks.filter(deck => 
+        deck.id !== targetDeckId && 
+        deck.cards.some(c => c.name.toLowerCase() === card.name.toLowerCase())
+      );
 
-      if (conflictingDecks.length > 0) {
+      if (decksWithThisCard.length > 0) {
+        // Find the last active deck that contains this card
+        // If the current active deck has it, that's where it is
+        // Otherwise, find the most recently active deck that has it
+        let currentLocation = '';
+        
+        if (activeDeck && activeDeck.cards.some(c => c.name.toLowerCase() === card.name.toLowerCase())) {
+          currentLocation = activeDeck.name;
+        } else {
+          // Find the most recently updated deck that has this card
+          const sortedDecks = decksWithThisCard.sort((a, b) => 
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+          currentLocation = sortedDecks[0]?.name || 'Unknown';
+        }
+
         conflicts.push({
           card,
-          currentDeck: activeDeck.name,
-          conflictingDecks,
+          currentDeck: currentLocation,
+          conflictingDecks: decksWithThisCard.map(d => d.name),
         });
       }
     });

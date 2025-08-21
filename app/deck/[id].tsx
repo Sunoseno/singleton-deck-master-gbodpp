@@ -27,8 +27,10 @@ export default function DeckDetailScreen() {
       const cardConflicts = getCardConflicts(deck.id);
       setConflicts(cardConflicts);
       console.log('Card conflicts for deck:', deck.name, cardConflicts.length);
+    } else {
+      setConflicts([]);
     }
-  }, [deck, decks]);
+  }, [deck, decks, getCardConflicts]);
 
   const handleDelete = () => {
     console.log('Delete button pressed for deck:', deck?.name);
@@ -210,9 +212,10 @@ export default function DeckDetailScreen() {
     return "flag-outline";
   };
 
+  // FIXED: Use distinct colors for different card types
   const getFlagColor = (card: Card) => {
-    if (card.isCommander) return colors.warning; // Orange
-    if (card.isPartnerCommander) return colors.error; // Red
+    if (card.isCommander) return colors.commander; // Orange
+    if (card.isPartnerCommander) return colors.partnerCommander; // Red
     return colors.textSecondary;
   };
 
@@ -285,11 +288,11 @@ export default function DeckDetailScreen() {
           </Text>
           {commanderCard ? (
             <View>
-              <Text style={[commonStyles.text, { color: colors.warning, fontWeight: '600' }]}>
+              <Text style={[commonStyles.text, { color: colors.commander, fontWeight: '600' }]}>
                 Commander: {commanderCard.name}
               </Text>
               {partnerCommanderCards.length > 0 && (
-                <Text style={[commonStyles.text, { color: colors.error, fontWeight: '600' }]}>
+                <Text style={[commonStyles.text, { color: colors.partnerCommander, fontWeight: '600' }]}>
                   Partner Commanders: {partnerCommanderCards.map(p => p.name).join(', ')}
                 </Text>
               )}
@@ -299,7 +302,7 @@ export default function DeckDetailScreen() {
             </View>
           ) : partnerCommanderCards.length > 0 ? (
             <View>
-              <Text style={[commonStyles.text, { color: colors.error, fontWeight: '600' }]}>
+              <Text style={[commonStyles.text, { color: colors.partnerCommander, fontWeight: '600' }]}>
                 Partner Commanders: {partnerCommanderCards.map(p => p.name).join(', ')}
               </Text>
               <Text style={commonStyles.textSecondary}>
@@ -315,7 +318,7 @@ export default function DeckDetailScreen() {
 
         {conflicts.length > 0 && (
           <View style={commonStyles.card}>
-            <Text style={[commonStyles.subtitle, { color: colors.warning, marginBottom: 8 }]}>
+            <Text style={[commonStyles.subtitle, { color: colors.conflictedCard, marginBottom: 8 }]}>
               Card Conflicts
             </Text>
             <Text style={[commonStyles.textSecondary, { marginBottom: 16 }]}>
@@ -344,6 +347,9 @@ export default function DeckDetailScreen() {
                       }}
                     >
                       <Text style={commonStyles.text}>• {conflict.card.name}</Text>
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12 }]}>
+                        Currently in: {conflict.currentDeck}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </ExpandableSection>
@@ -355,18 +361,23 @@ export default function DeckDetailScreen() {
               {conflicts.map((conflict, index) => (
                 <ExpandableSection
                   key={index}
-                  title={`${conflict.card.name} (${conflict.conflictingDecks.length} decks)`}
+                  title={`${conflict.card.name} (in ${conflict.currentDeck})`}
                   style={{ marginBottom: 8 }}
                 >
+                  <Text style={[commonStyles.textSecondary, { marginBottom: 8 }]}>
+                    Currently located in: <Text style={{ fontWeight: '600' }}>{conflict.currentDeck}</Text>
+                  </Text>
+                  <Text style={[commonStyles.textSecondary, { marginBottom: 4 }]}>
+                    Also needed by:
+                  </Text>
                   {conflict.conflictingDecks.map((deckName, deckIndex) => (
                     <Text
                       key={deckIndex}
                       style={[
                         commonStyles.textSecondary,
                         {
-                          paddingVertical: 4,
-                          borderBottomWidth: deckIndex < conflict.conflictingDecks.length - 1 ? 1 : 0,
-                          borderBottomColor: colors.border,
+                          paddingVertical: 2,
+                          paddingLeft: 16,
                         },
                       ]}
                     >
@@ -393,17 +404,17 @@ export default function DeckDetailScreen() {
                   borderBottomWidth: index < deck.cards.length - 1 ? 1 : 0,
                   borderBottomColor: colors.border,
                   backgroundColor: card.isCommander 
-                    ? colors.warning + '20' 
+                    ? colors.commander + '20' 
                     : card.isPartnerCommander 
-                    ? colors.error + '20' 
+                    ? colors.partnerCommander + '20' 
                     : isConflicted 
-                    ? '#E3F2FD' 
+                    ? colors.conflictedCardBg 
                     : 'transparent',
                   paddingHorizontal: (card.isCommander || card.isPartnerCommander || isConflicted) ? 8 : 0,
                   borderRadius: (card.isCommander || card.isPartnerCommander || isConflicted) ? 8 : 0,
                   marginVertical: (card.isCommander || card.isPartnerCommander || isConflicted) ? 2 : 0,
                   borderLeftWidth: isConflicted && !card.isCommander && !card.isPartnerCommander ? 3 : 0,
-                  borderLeftColor: '#2196F3',
+                  borderLeftColor: colors.conflictedCard,
                 }}
               >
                 <View style={commonStyles.row}>
@@ -443,13 +454,18 @@ export default function DeckDetailScreen() {
                       </TouchableOpacity>
                     </View>
                     {card.isCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.warning, marginLeft: 30 }]}>
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.commander, marginLeft: 30 }]}>
                         Commander
                       </Text>
                     )}
                     {card.isPartnerCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.error, marginLeft: 30 }]}>
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.partnerCommander, marginLeft: 30 }]}>
                         Partner Commander
+                      </Text>
+                    )}
+                    {isConflicted && !card.isCommander && !card.isPartnerCommander && (
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.conflictedCard, marginLeft: 30 }]}>
+                        Not in deck
                       </Text>
                     )}
                   </View>
