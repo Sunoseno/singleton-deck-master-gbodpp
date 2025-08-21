@@ -29,26 +29,44 @@ export const useDecks = () => {
     try {
       console.log('Adding deck:', deck.name);
       
-      // Calculate color identity for the deck
+      // Calculate color identity for the deck by fetching commander data from Scryfall
       const commanders = deck.cards.filter(card => card.isCommander || card.isPartnerCommander);
-      const colorIdentity = scryfallService.calculateDeckColorIdentity(commanders);
+      console.log('Found commanders for color identity calculation:', commanders.map(c => c.name));
+      
+      let colorIdentity: string[] = [];
+      
+      // Fetch color identity from Scryfall for each commander
+      for (const commander of commanders) {
+        try {
+          const scryfallCard = await scryfallService.searchCard(commander.name);
+          if (scryfallCard && scryfallCard.color_identity) {
+            console.log(`Color identity for ${commander.name}:`, scryfallCard.color_identity);
+            colorIdentity = [...colorIdentity, ...scryfallCard.color_identity];
+          }
+        } catch (error) {
+          console.log(`Error fetching color identity for ${commander.name}:`, error);
+        }
+      }
+      
+      // Remove duplicates and sort
+      colorIdentity = [...new Set(colorIdentity)].sort();
+      console.log('Final deck color identity:', colorIdentity);
       
       // Create the new deck object with temporary ID for optimistic update
-      // NEW: Set new deck as active by default
       const tempDeck: Deck = {
         ...deck,
         id: `temp-${Date.now()}`,
         createdAt: new Date(),
         updatedAt: new Date(),
         colorIdentity,
-        isActive: true, // NEW: Auto-activate new decks
+        isActive: true, // Auto-activate new decks
       };
       
-      // Optimistic update - add deck to state immediately and deactivate others
+      // Optimistic update - add deck to BEGINNING of array and deactivate others
       setDecks(prev => {
-        console.log('Optimistic update: adding deck to state and setting as active');
+        console.log('Optimistic update: adding deck to beginning of state and setting as active');
         const updatedDecks = prev.map(d => ({ ...d, isActive: false })); // Deactivate all existing decks
-        return [...updatedDecks, tempDeck];
+        return [tempDeck, ...updatedDecks]; // Add new deck to beginning
       });
       
       // Save to storage
@@ -63,11 +81,12 @@ export const useDecks = () => {
         }
       }
       
-      // Replace the temporary deck with the real one
+      // Replace the temporary deck with the real one at the beginning
       setDecks(prev => {
-        const updated = prev.map(d => d.id === tempDeck.id ? newDeck : { ...d, isActive: false });
+        const withoutTemp = prev.filter(d => d.id !== tempDeck.id);
+        const updated = withoutTemp.map(d => ({ ...d, isActive: false }));
         console.log('Replaced temporary deck with real deck and deactivated others');
-        return updated;
+        return [newDeck, ...updated]; // Keep new deck at beginning
       });
       
       console.log('Deck addition completed successfully');
@@ -88,7 +107,26 @@ export const useDecks = () => {
       let finalUpdates = { ...updates };
       if (updates.cards) {
         const commanders = updates.cards.filter(card => card.isCommander || card.isPartnerCommander);
-        finalUpdates.colorIdentity = scryfallService.calculateDeckColorIdentity(commanders);
+        console.log('Recalculating color identity for commanders:', commanders.map(c => c.name));
+        
+        let colorIdentity: string[] = [];
+        
+        // Fetch color identity from Scryfall for each commander
+        for (const commander of commanders) {
+          try {
+            const scryfallCard = await scryfallService.searchCard(commander.name);
+            if (scryfallCard && scryfallCard.color_identity) {
+              console.log(`Color identity for ${commander.name}:`, scryfallCard.color_identity);
+              colorIdentity = [...colorIdentity, ...scryfallCard.color_identity];
+            }
+          } catch (error) {
+            console.log(`Error fetching color identity for ${commander.name}:`, error);
+          }
+        }
+        
+        // Remove duplicates and sort
+        finalUpdates.colorIdentity = [...new Set(colorIdentity)].sort();
+        console.log('Updated deck color identity:', finalUpdates.colorIdentity);
       }
       
       // Optimistic update
@@ -142,7 +180,7 @@ export const useDecks = () => {
     try {
       console.log('Setting active deck:', deckId);
       
-      // FIXED: Update deck order - move active deck to top, maintain order for others
+      // Update deck order - move active deck to top, maintain order for others
       setDecks(prev => {
         const activeDeck = prev.find(d => d.id === deckId);
         const otherDecks = prev.filter(d => d.id !== deckId);
@@ -190,7 +228,7 @@ export const useDecks = () => {
     }
   }, [loadDecks]);
 
-  // FIXED: Find where a card is currently located (last active deck that contains it)
+  // Find where a card is currently located (last active deck that contains it)
   const findCardLocation = useCallback((cardName: string, allDecks: Deck[]): { deckId: string; deckName: string } | null => {
     console.log('Finding location for card:', cardName);
     
@@ -222,7 +260,7 @@ export const useDecks = () => {
     return { deckId: location.id, deckName: location.name };
   }, []);
 
-  // FIXED: New logic for determining card conflicts
+  // Logic for determining card conflicts
   const getCardConflicts = useCallback((targetDeckId: string): CardConflict[] => {
     console.log('Getting card conflicts for deck:', targetDeckId);
     
@@ -262,7 +300,7 @@ export const useDecks = () => {
     return conflicts;
   }, [decks, findCardLocation]);
 
-  // FIXED: New function to get conflicts grouped by deck (only showing decks where cards currently are)
+  // Function to get conflicts grouped by deck (only showing decks where cards currently are)
   const getConflictsByDeck = useCallback((targetDeckId: string): { [deckName: string]: CardConflict[] } => {
     console.log('Getting conflicts by deck for:', targetDeckId);
     
@@ -284,7 +322,7 @@ export const useDecks = () => {
     return conflictsByDeck;
   }, [getCardConflicts]);
 
-  // NEW: Function to get deck information for a specific card
+  // Function to get deck information for a specific card
   const getCardDeckInfo = useCallback((cardName: string): { currentDeck: string | null; otherDecks: string[] } => {
     console.log('Getting deck info for card:', cardName);
     
@@ -331,9 +369,9 @@ export const useDecks = () => {
     deleteDeck,
     setActiveDeck,
     getCardConflicts,
-    getConflictsByDeck, // NEW: Export the new function
-    getCardDeckInfo, // NEW: Export the new function
-    findCardLocation, // NEW: Export for debugging
+    getConflictsByDeck,
+    getCardDeckInfo,
+    findCardLocation,
     enrichCardWithScryfall,
     refreshDecks: loadDecks,
   };

@@ -18,6 +18,7 @@ export default function DeckListScreen() {
 
   useEffect(() => {
     console.log('Decks updated:', decks.length);
+    console.log('Deck order:', decks.map(d => ({ name: d.name, isActive: d.isActive })));
   }, [decks]);
 
   const handleDeckPress = (deckId: string) => {
@@ -60,17 +61,30 @@ export default function DeckListScreen() {
     return colorIdentity.map(color => colorMap[color] || '#E0E0E0');
   };
 
-  // FIXED: Sort decks to show active deck first, but maintain order for others
+  // Sort decks to show active deck first, maintain insertion order for others
   const sortedDecks = (() => {
+    console.log('Sorting decks, current order:', decks.map(d => ({ name: d.name, isActive: d.isActive })));
+    
+    // The decks array should already be in the correct order from useDecks
+    // Active deck should be first, others maintain their order
     const activeDeck = decks.find(d => d.isActive);
     const inactiveDecks = decks.filter(d => !d.isActive);
     
-    // If there's an active deck, put it first, then maintain original order for others
+    let result;
     if (activeDeck) {
-      return [activeDeck, ...inactiveDecks];
+      // If active deck is already first, keep the order
+      if (decks[0]?.isActive) {
+        result = decks;
+      } else {
+        // Otherwise, move active deck to first position
+        result = [activeDeck, ...inactiveDecks];
+      }
+    } else {
+      result = decks;
     }
     
-    return decks;
+    console.log('Final sorted order:', result.map(d => ({ name: d.name, isActive: d.isActive })));
+    return result;
   })();
 
   return (
@@ -105,6 +119,8 @@ export default function DeckListScreen() {
             const commanderCard = deck.cards.find(card => card.isCommander);
             const partnerCommanderCards = deck.cards.filter(card => card.isPartnerCommander);
             const gradientColors = getDeckGradientColors(deck.colorIdentity || []);
+            
+            console.log(`Deck ${deck.name} color identity:`, deck.colorIdentity, 'gradient colors:', gradientColors);
             
             return (
               <TouchableOpacity
