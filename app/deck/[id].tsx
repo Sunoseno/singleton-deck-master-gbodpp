@@ -11,6 +11,8 @@ export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { decks, deleteDeck, setActiveDeck, getCardConflicts, updateDeck } = useDecks();
   const [conflicts, setConflicts] = useState<CardConflict[]>([]);
+  const [selectedDeckDropdown, setSelectedDeckDropdown] = useState<string | null>(null);
+  const [selectedCardDropdown, setSelectedCardDropdown] = useState<string | null>(null);
 
   const deck = decks.find(d => d.id === id);
 
@@ -262,23 +264,187 @@ export default function DeckDetailScreen() {
         </View>
 
         {conflicts.length > 0 && (
-          <View style={commonStyles.conflictCard}>
+          <View style={commonStyles.card}>
             <Text style={[commonStyles.subtitle, { color: colors.warning, marginBottom: 8 }]}>
-              Card Conflicts ({conflicts.length})
+              Card Conflicts
             </Text>
-            <Text style={commonStyles.textSecondary}>
-              These cards are currently in other decks:
+            <Text style={[commonStyles.textSecondary, { marginBottom: 16 }]}>
+              {conflicts.length} cards are missing and found in {[...new Set(conflicts.flatMap(c => c.conflictingDecks))].length} other decks
             </Text>
-            {conflicts.slice(0, 3).map((conflict, index) => (
-              <Text key={index} style={[commonStyles.textSecondary, { marginTop: 4 }]}>
-                • {conflict.card.name} (in {conflict.conflictingDecks.join(', ')})
+            
+            {/* Deck Dropdown */}
+            <View style={{ marginBottom: 16 }}>
+              <Text style={[commonStyles.text, { fontWeight: '600', marginBottom: 8 }]}>
+                View by Deck:
               </Text>
-            ))}
-            {conflicts.length > 3 && (
-              <Text style={[commonStyles.textSecondary, { marginTop: 4, fontStyle: 'italic' }]}>
-                ...and {conflicts.length - 3} more
+              <TouchableOpacity
+                style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 8,
+                  padding: 12,
+                  backgroundColor: colors.background,
+                }}
+                onPress={() => setSelectedDeckDropdown(selectedDeckDropdown ? null : 'open')}
+              >
+                <View style={commonStyles.row}>
+                  <Text style={commonStyles.text}>
+                    {selectedDeckDropdown && selectedDeckDropdown !== 'open' 
+                      ? `Deck: ${selectedDeckDropdown}` 
+                      : 'Select a deck to view conflicted cards'}
+                  </Text>
+                  <Icon 
+                    name={selectedDeckDropdown === 'open' ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color={colors.textSecondary} 
+                  />
+                </View>
+              </TouchableOpacity>
+              
+              {selectedDeckDropdown === 'open' && (
+                <View style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderTopWidth: 0,
+                  borderRadius: 8,
+                  borderTopLeftRadius: 0,
+                  borderTopRightRadius: 0,
+                  backgroundColor: colors.background,
+                  maxHeight: 200,
+                }}>
+                  <ScrollView style={{ maxHeight: 200 }}>
+                    {[...new Set(conflicts.flatMap(c => c.conflictingDecks))].map((deckName, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={{
+                          padding: 12,
+                          borderBottomWidth: index < [...new Set(conflicts.flatMap(c => c.conflictingDecks))].length - 1 ? 1 : 0,
+                          borderBottomColor: colors.border,
+                        }}
+                        onPress={() => setSelectedDeckDropdown(deckName)}
+                      >
+                        <Text style={commonStyles.text}>{deckName}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+              
+              {selectedDeckDropdown && selectedDeckDropdown !== 'open' && (
+                <View style={{
+                  marginTop: 8,
+                  padding: 12,
+                  backgroundColor: colors.backgroundAlt,
+                  borderRadius: 8,
+                }}>
+                  <Text style={[commonStyles.text, { fontWeight: '600', marginBottom: 8 }]}>
+                    Conflicted cards in {selectedDeckDropdown}:
+                  </Text>
+                  {conflicts
+                    .filter(c => c.conflictingDecks.includes(selectedDeckDropdown))
+                    .map((conflict, index) => (
+                      <Text key={index} style={[commonStyles.textSecondary, { marginBottom: 4 }]}>
+                        • {conflict.card.name}
+                      </Text>
+                    ))}
+                </View>
+              )}
+            </View>
+
+            {/* Card Dropdown */}
+            <View>
+              <Text style={[commonStyles.text, { fontWeight: '600', marginBottom: 8 }]}>
+                View by Card:
               </Text>
-            )}
+              <TouchableOpacity
+                style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 8,
+                  padding: 12,
+                  backgroundColor: colors.background,
+                }}
+                onPress={() => setSelectedCardDropdown(selectedCardDropdown ? null : 'open')}
+              >
+                <View style={commonStyles.row}>
+                  <Text style={commonStyles.text}>
+                    {selectedCardDropdown && selectedCardDropdown !== 'open' 
+                      ? `Card: ${selectedCardDropdown}` 
+                      : 'Select a card to view conflicting decks'}
+                  </Text>
+                  <Icon 
+                    name={selectedCardDropdown === 'open' ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color={colors.textSecondary} 
+                  />
+                </View>
+              </TouchableOpacity>
+              
+              {selectedCardDropdown === 'open' && (
+                <View style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderTopWidth: 0,
+                  borderRadius: 8,
+                  borderTopLeftRadius: 0,
+                  borderTopRightRadius: 0,
+                  backgroundColor: colors.background,
+                  maxHeight: 200,
+                }}>
+                  <ScrollView style={{ maxHeight: 200 }}>
+                    {conflicts.map((conflict, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={{
+                          padding: 12,
+                          borderBottomWidth: index < conflicts.length - 1 ? 1 : 0,
+                          borderBottomColor: colors.border,
+                        }}
+                        onPress={() => setSelectedCardDropdown(conflict.card.name)}
+                      >
+                        <View style={commonStyles.row}>
+                          <Text style={commonStyles.text}>{conflict.card.name}</Text>
+                          <View style={{
+                            backgroundColor: colors.warning,
+                            borderRadius: 10,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                          }}>
+                            <Text style={{
+                              color: colors.background,
+                              fontSize: 10,
+                              fontWeight: '600',
+                            }}>
+                              {conflict.conflictingDecks.length}
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+              
+              {selectedCardDropdown && selectedCardDropdown !== 'open' && (
+                <View style={{
+                  marginTop: 8,
+                  padding: 12,
+                  backgroundColor: colors.backgroundAlt,
+                  borderRadius: 8,
+                }}>
+                  <Text style={[commonStyles.text, { fontWeight: '600', marginBottom: 8 }]}>
+                    {selectedCardDropdown} is found in:
+                  </Text>
+                  {conflicts
+                    .find(c => c.card.name === selectedCardDropdown)
+                    ?.conflictingDecks.map((deckName, index) => (
+                      <Text key={index} style={[commonStyles.textSecondary, { marginBottom: 4 }]}>
+                        • {deckName}
+                      </Text>
+                    ))}
+                </View>
+              )}
+            </View>
           </View>
         )}
 
@@ -300,11 +466,13 @@ export default function DeckDetailScreen() {
                     : card.isPartnerCommander 
                     ? colors.error + '20' 
                     : isConflicted 
-                    ? colors.conflict 
+                    ? '#E3F2FD' 
                     : 'transparent',
                   paddingHorizontal: (card.isCommander || card.isPartnerCommander || isConflicted) ? 8 : 0,
                   borderRadius: (card.isCommander || card.isPartnerCommander || isConflicted) ? 8 : 0,
                   marginVertical: (card.isCommander || card.isPartnerCommander || isConflicted) ? 2 : 0,
+                  borderLeftWidth: isConflicted && !card.isCommander && !card.isPartnerCommander ? 3 : 0,
+                  borderLeftColor: '#2196F3',
                 }}
               >
                 <View style={commonStyles.row}>
@@ -335,9 +503,6 @@ export default function DeckDetailScreen() {
                       >
                         {card.name}
                       </Text>
-                      {isConflicted && (
-                        <Icon name="warning" size={16} color={colors.warning} style={{ marginLeft: 8 }} />
-                      )}
                     </View>
                     {card.isCommander && (
                       <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.warning, marginLeft: 30 }]}>

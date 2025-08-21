@@ -15,7 +15,7 @@ export const colors = {
   card: '#FFFFFF',       // White card background
   border: '#E0E0E0',     // Light border
   active: '#2E7D32',     // Green for active state
-  conflict: '#FFF3E0',   // Light orange for conflicts
+  conflict: '#E3F2FD',   // Light blue for conflicts
 };
 
 export const buttonStyles = StyleSheet.create({
