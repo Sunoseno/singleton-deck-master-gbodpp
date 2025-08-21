@@ -10,12 +10,8 @@ import Icon from '../components/Icon';
 export default function AddDeckScreen() {
   const { addDeck } = useDecks();
   const [deckName, setDeckName] = useState('');
-  const [commanderName, setCommanderName] = useState('');
-  const [commanderManaCost, setCommanderManaCost] = useState('');
   const [cards, setCards] = useState<Card[]>([]);
   const [newCardName, setNewCardName] = useState('');
-  const [newCardManaCost, setNewCardManaCost] = useState('');
-  const [newCardType, setNewCardType] = useState('');
   const [decklistText, setDecklistText] = useState('');
   const [showImportSection, setShowImportSection] = useState(false);
 
@@ -25,27 +21,58 @@ export default function AddDeckScreen() {
       return;
     }
 
-    const newCard: Card = {
-      id: `${Date.now()}-${Math.random()}`,
-      name: newCardName.trim(),
-      manaCost: newCardManaCost.trim() || undefined,
-      type: newCardType.trim() || undefined,
-    };
+    // Check if card already exists
+    const existingCardIndex = cards.findIndex(card => 
+      card.name.toLowerCase() === newCardName.trim().toLowerCase()
+    );
 
-    setCards(prev => [...prev, newCard]);
+    if (existingCardIndex !== -1) {
+      // Increase quantity of existing card
+      setCards(prev => prev.map((card, index) => 
+        index === existingCardIndex 
+          ? { ...card, quantity: card.quantity + 1 }
+          : card
+      ));
+    } else {
+      // Add new card
+      const newCard: Card = {
+        id: `${Date.now()}-${Math.random()}`,
+        name: newCardName.trim(),
+        quantity: 1,
+        isCommander: false,
+      };
+      setCards(prev => [...prev, newCard]);
+    }
+
     setNewCardName('');
-    setNewCardManaCost('');
-    setNewCardType('');
-    console.log('Added card:', newCard.name);
+    console.log('Added card:', newCardName.trim());
   };
 
   const removeCard = (cardId: string) => {
     setCards(prev => prev.filter(card => card.id !== cardId));
   };
 
+  const updateCardQuantity = (cardId: string, change: number) => {
+    setCards(prev => prev.map(card => {
+      if (card.id === cardId) {
+        const newQuantity = Math.max(0, card.quantity + change);
+        return newQuantity === 0 ? null : { ...card, quantity: newQuantity };
+      }
+      return card;
+    }).filter(Boolean) as Card[]);
+  };
+
+  const toggleCommander = (cardId: string) => {
+    setCards(prev => prev.map(card => ({
+      ...card,
+      isCommander: card.id === cardId ? !card.isCommander : false,
+    })));
+  };
+
   const parseDecklistText = (text: string): Card[] => {
     const lines = text.split('\n').filter(line => line.trim());
     const parsedCards: Card[] = [];
+    const cardMap = new Map<string, number>();
     
     console.log('Parsing decklist with', lines.length, 'lines');
     
@@ -54,7 +81,6 @@ export default function AddDeckScreen() {
       if (!trimmedLine) continue;
       
       // Match pattern: number followed by space and card name
-      // Examples: "1 Arena of Glory", "2 Lightning Bolt", "10 Mountain"
       const match = trimmedLine.match(/^(\d+)\s+(.+)$/);
       
       if (match) {
@@ -63,18 +89,24 @@ export default function AddDeckScreen() {
         
         console.log(`Parsed: ${quantity}x ${cardName}`);
         
-        // Add the card the specified number of times
-        for (let i = 0; i < quantity; i++) {
-          const card: Card = {
-            id: `${Date.now()}-${Math.random()}-${i}`,
-            name: cardName,
-          };
-          parsedCards.push(card);
-        }
+        // Accumulate quantities for duplicate card names
+        const existingQuantity = cardMap.get(cardName) || 0;
+        cardMap.set(cardName, existingQuantity + quantity);
       } else {
         console.log('Could not parse line:', trimmedLine);
       }
     }
+    
+    // Convert map to cards array
+    cardMap.forEach((quantity, cardName) => {
+      const card: Card = {
+        id: `${Date.now()}-${Math.random()}`,
+        name: cardName,
+        quantity: quantity,
+        isCommander: false,
+      };
+      parsedCards.push(card);
+    });
     
     return parsedCards;
   };
@@ -93,13 +125,27 @@ export default function AddDeckScreen() {
         return;
       }
 
-      // Add imported cards to existing cards
-      setCards(prev => [...prev, ...importedCards]);
+      // Merge imported cards with existing cards
+      const mergedCards = [...cards];
+      
+      importedCards.forEach(importedCard => {
+        const existingIndex = mergedCards.findIndex(card => 
+          card.name.toLowerCase() === importedCard.name.toLowerCase()
+        );
+        
+        if (existingIndex !== -1) {
+          mergedCards[existingIndex].quantity += importedCard.quantity;
+        } else {
+          mergedCards.push(importedCard);
+        }
+      });
+
+      setCards(mergedCards);
       setDecklistText('');
       setShowImportSection(false);
       
-      console.log(`Imported ${importedCards.length} cards`);
-      Alert.alert('Success', `Imported ${importedCards.length} cards to your deck!`);
+      console.log(`Imported ${importedCards.length} unique cards`);
+      Alert.alert('Success', `Imported ${importedCards.length} unique cards to your deck!`);
     } catch (error) {
       console.log('Error importing decklist:', error);
       Alert.alert('Error', 'Failed to import decklist. Please check the format.');
@@ -130,15 +176,35 @@ export default function AddDeckScreen() {
       return;
     }
 
-    if (!commanderName.trim()) {
-      Alert.alert('Error', 'Please enter a commander name');
+    if (cards.length === 0) {
+      Alert.alert('Error', 'Please add at least one card to the deck');
       return;
     }
 
-    if (cards.length < 99) {
+    const totalCards = cards.reduce((sum, card) => sum + card.quantity, 0);
+    const commanderCards = cards.filter(card => card.isCommander);
+
+    if (commanderCards.length === 0) {
+      Alert.alert(
+        'No Commander Selected',
+        'MTG Commander decks need a commander. Do you want to save anyway?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Save Anyway', onPress: saveDeck },
+        ]
+      );
+      return;
+    }
+
+    if (commanderCards.length > 1) {
+      Alert.alert('Error', 'A deck can only have one commander');
+      return;
+    }
+
+    if (totalCards !== 100) {
       Alert.alert(
         'Incomplete Deck',
-        `Your deck has ${cards.length} cards. MTG Commander decks need exactly 99 cards plus a commander. Do you want to save anyway?`,
+        `Your deck has ${totalCards} cards. MTG Commander decks need exactly 100 cards (including commander). Do you want to save anyway?`,
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Save Anyway', onPress: saveDeck },
@@ -152,16 +218,8 @@ export default function AddDeckScreen() {
 
   const saveDeck = async () => {
     try {
-      const commander: Card = {
-        id: `commander-${Date.now()}`,
-        name: commanderName.trim(),
-        manaCost: commanderManaCost.trim() || undefined,
-        type: 'Legendary Creature',
-      };
-
       await addDeck({
         name: deckName.trim(),
-        commander,
         cards,
         isActive: false,
       });
@@ -173,6 +231,9 @@ export default function AddDeckScreen() {
       Alert.alert('Error', 'Failed to save deck');
     }
   };
+
+  const totalCards = cards.reduce((sum, card) => sum + card.quantity, 0);
+  const commanderCard = cards.find(card => card.isCommander);
 
   return (
     <View style={commonStyles.container}>
@@ -208,24 +269,6 @@ export default function AddDeckScreen() {
             value={deckName}
             onChangeText={setDeckName}
             placeholder="Enter deck name"
-            placeholderTextColor={colors.textSecondary}
-          />
-          
-          <Text style={[commonStyles.text, { marginTop: 16, marginBottom: 8 }]}>Commander Name</Text>
-          <TextInput
-            style={commonStyles.input}
-            value={commanderName}
-            onChangeText={setCommanderName}
-            placeholder="Enter commander name"
-            placeholderTextColor={colors.textSecondary}
-          />
-          
-          <Text style={[commonStyles.text, { marginTop: 16, marginBottom: 8 }]}>Commander Mana Cost (Optional)</Text>
-          <TextInput
-            style={commonStyles.input}
-            value={commanderManaCost}
-            onChangeText={setCommanderManaCost}
-            placeholder="e.g., {2}{W}{U}"
             placeholderTextColor={colors.textSecondary}
           />
         </View>
@@ -303,7 +346,7 @@ export default function AddDeckScreen() {
 
         <View style={commonStyles.card}>
           <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>
-            Add Individual Cards ({cards.length}/99)
+            Add Card ({totalCards}/100)
           </Text>
           
           <Text style={[commonStyles.text, { marginBottom: 8 }]}>Card Name</Text>
@@ -313,24 +356,8 @@ export default function AddDeckScreen() {
             onChangeText={setNewCardName}
             placeholder="Enter card name"
             placeholderTextColor={colors.textSecondary}
-          />
-          
-          <Text style={[commonStyles.text, { marginTop: 12, marginBottom: 8 }]}>Mana Cost (Optional)</Text>
-          <TextInput
-            style={commonStyles.input}
-            value={newCardManaCost}
-            onChangeText={setNewCardManaCost}
-            placeholder="e.g., {1}{R}"
-            placeholderTextColor={colors.textSecondary}
-          />
-          
-          <Text style={[commonStyles.text, { marginTop: 12, marginBottom: 8 }]}>Type (Optional)</Text>
-          <TextInput
-            style={commonStyles.input}
-            value={newCardType}
-            onChangeText={setNewCardType}
-            placeholder="e.g., Instant, Creature, etc."
-            placeholderTextColor={colors.textSecondary}
+            onSubmitEditing={addCard}
+            returnKeyType="done"
           />
           
           <TouchableOpacity
@@ -354,7 +381,12 @@ export default function AddDeckScreen() {
           <View style={commonStyles.card}>
             <View style={commonStyles.row}>
               <Text style={[commonStyles.subtitle, { flex: 1 }]}>
-                Cards in Deck ({cards.length})
+                Cards in Deck ({totalCards})
+                {commanderCard && (
+                  <Text style={[commonStyles.textSecondary, { fontSize: 14 }]}>
+                    {' '}• Commander: {commanderCard.name}
+                  </Text>
+                )}
               </Text>
               <TouchableOpacity
                 onPress={clearAllCards}
@@ -368,26 +400,86 @@ export default function AddDeckScreen() {
               <View
                 key={card.id}
                 style={{
-                  paddingVertical: 8,
+                  paddingVertical: 12,
                   borderBottomWidth: index < cards.length - 1 ? 1 : 0,
                   borderBottomColor: colors.border,
+                  backgroundColor: card.isCommander ? colors.success + '20' : 'transparent',
+                  paddingHorizontal: card.isCommander ? 8 : 0,
+                  borderRadius: card.isCommander ? 8 : 0,
+                  marginVertical: card.isCommander ? 2 : 0,
                 }}
               >
                 <View style={commonStyles.row}>
                   <View style={{ flex: 1 }}>
-                    <Text style={commonStyles.text}>{card.name}</Text>
-                    {card.manaCost && (
-                      <Text style={commonStyles.textSecondary}>
-                        {card.manaCost} • {card.type}
+                    <View style={commonStyles.row}>
+                      <Text style={[commonStyles.text, { flex: 1 }]}>{card.name}</Text>
+                      {!card.isCommander && (
+                        <TouchableOpacity
+                          onPress={() => toggleCommander(card.id)}
+                          style={{ padding: 4, marginRight: 8 }}
+                        >
+                          <Icon name="flag-outline" size={18} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                      )}
+                      {card.isCommander && (
+                        <TouchableOpacity
+                          onPress={() => toggleCommander(card.id)}
+                          style={{ padding: 4, marginRight: 8 }}
+                        >
+                          <Icon name="flag" size={18} color={colors.warning} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    {card.isCommander && (
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.success }]}>
+                        Commander
                       </Text>
                     )}
                   </View>
-                  <TouchableOpacity
-                    onPress={() => removeCard(card.id)}
-                    style={{ padding: 4 }}
-                  >
-                    <Icon name="trash" size={18} color={colors.error} />
-                  </TouchableOpacity>
+                  
+                  <View style={commonStyles.row}>
+                    <TouchableOpacity
+                      onPress={() => updateCardQuantity(card.id, -1)}
+                      style={{
+                        backgroundColor: colors.border,
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 8,
+                      }}
+                    >
+                      <Icon name="remove" size={16} color={colors.text} />
+                    </TouchableOpacity>
+                    
+                    <Text style={[commonStyles.text, { minWidth: 24, textAlign: 'center' }]}>
+                      {card.quantity}
+                    </Text>
+                    
+                    <TouchableOpacity
+                      onPress={() => updateCardQuantity(card.id, 1)}
+                      style={{
+                        backgroundColor: colors.primary,
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginLeft: 8,
+                        marginRight: 8,
+                      }}
+                    >
+                      <Icon name="add" size={16} color={colors.background} />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      onPress={() => removeCard(card.id)}
+                      style={{ padding: 4 }}
+                    >
+                      <Icon name="trash" size={18} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             ))}

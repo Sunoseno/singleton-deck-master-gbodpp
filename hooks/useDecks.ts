@@ -85,7 +85,7 @@ export const useDecks = () => {
 
     targetDeck.cards.forEach(card => {
       const conflictingDecks = allOtherDecks
-        .filter(deck => deck.cards.some(c => c.id === card.id))
+        .filter(deck => deck.cards.some(c => c.name.toLowerCase() === card.name.toLowerCase()))
         .map(deck => deck.name);
 
       if (conflictingDecks.length > 0) {

@@ -15,6 +15,12 @@ export const deckStorage = {
         ...deck,
         createdAt: new Date(deck.createdAt),
         updatedAt: new Date(deck.updatedAt),
+        // Ensure cards have quantity and isCommander properties for backward compatibility
+        cards: deck.cards.map((card: any) => ({
+          ...card,
+          quantity: card.quantity || 1,
+          isCommander: card.isCommander || false,
+        })),
       }));
     } catch (error) {
       console.log('Error loading decks:', error);

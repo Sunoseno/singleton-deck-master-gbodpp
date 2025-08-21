@@ -9,7 +9,7 @@ import Icon from '../../components/Icon';
 
 export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { decks, deleteDeck, setActiveDeck, getCardConflicts } = useDecks();
+  const { decks, deleteDeck, setActiveDeck, getCardConflicts, updateDeck } = useDecks();
   const [conflicts, setConflicts] = useState<CardConflict[]>([]);
 
   const deck = decks.find(d => d.id === id);
@@ -57,6 +57,41 @@ export default function DeckDetailScreen() {
     }
   };
 
+  const updateCardQuantity = async (cardId: string, change: number) => {
+    if (!deck) return;
+
+    const updatedCards = deck.cards.map(card => {
+      if (card.id === cardId) {
+        const newQuantity = Math.max(0, card.quantity + change);
+        return newQuantity === 0 ? null : { ...card, quantity: newQuantity };
+      }
+      return card;
+    }).filter(Boolean) as Card[];
+
+    try {
+      await updateDeck(deck.id, { cards: updatedCards });
+      console.log('Updated card quantity');
+    } catch (error) {
+      console.log('Error updating card quantity:', error);
+    }
+  };
+
+  const toggleCommander = async (cardId: string) => {
+    if (!deck) return;
+
+    const updatedCards = deck.cards.map(card => ({
+      ...card,
+      isCommander: card.id === cardId ? !card.isCommander : false,
+    }));
+
+    try {
+      await updateDeck(deck.id, { cards: updatedCards });
+      console.log('Updated commander selection');
+    } catch (error) {
+      console.log('Error updating commander:', error);
+    }
+  };
+
   if (!deck) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -64,6 +99,9 @@ export default function DeckDetailScreen() {
       </View>
     );
   }
+
+  const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
+  const commanderCard = deck.cards.find(card => card.isCommander);
 
   return (
     <View style={commonStyles.container}>
@@ -113,10 +151,22 @@ export default function DeckDetailScreen() {
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
         <View style={commonStyles.card}>
-          <Text style={[commonStyles.subtitle, { marginBottom: 8 }]}>Commander</Text>
-          <Text style={commonStyles.text}>{deck.commander.name}</Text>
-          {deck.commander.manaCost && (
-            <Text style={commonStyles.textSecondary}>Mana Cost: {deck.commander.manaCost}</Text>
+          <Text style={[commonStyles.subtitle, { marginBottom: 8 }]}>
+            Deck Overview ({totalCards} cards)
+          </Text>
+          {commanderCard ? (
+            <View>
+              <Text style={[commonStyles.text, { color: colors.success, fontWeight: '600' }]}>
+                Commander: {commanderCard.name}
+              </Text>
+              <Text style={commonStyles.textSecondary}>
+                Other cards: {totalCards - (commanderCard.quantity || 1)}
+              </Text>
+            </View>
+          ) : (
+            <Text style={[commonStyles.text, { color: colors.warning }]}>
+              No commander selected
+            </Text>
           )}
         </View>
 
@@ -143,7 +193,7 @@ export default function DeckDetailScreen() {
 
         <View style={commonStyles.card}>
           <Text style={[commonStyles.subtitle, { marginBottom: 8 }]}>
-            Cards ({deck.cards.length})
+            Cards ({deck.cards.length} unique)
           </Text>
           {deck.cards.map((card, index) => {
             const isConflicted = conflicts.some(c => c.card.id === card.id);
@@ -151,25 +201,86 @@ export default function DeckDetailScreen() {
               <View
                 key={card.id}
                 style={{
-                  paddingVertical: 8,
+                  paddingVertical: 12,
                   borderBottomWidth: index < deck.cards.length - 1 ? 1 : 0,
                   borderBottomColor: colors.border,
-                  backgroundColor: isConflicted ? colors.conflict : 'transparent',
-                  paddingHorizontal: isConflicted ? 8 : 0,
-                  borderRadius: isConflicted ? 4 : 0,
+                  backgroundColor: card.isCommander 
+                    ? colors.success + '20' 
+                    : isConflicted 
+                    ? colors.conflict 
+                    : 'transparent',
+                  paddingHorizontal: (card.isCommander || isConflicted) ? 8 : 0,
+                  borderRadius: (card.isCommander || isConflicted) ? 8 : 0,
+                  marginVertical: (card.isCommander || isConflicted) ? 2 : 0,
                 }}
               >
                 <View style={commonStyles.row}>
-                  <Text style={commonStyles.text}>{card.name}</Text>
-                  {isConflicted && (
-                    <Icon name="warning" size={16} color={colors.warning} />
-                  )}
+                  <View style={{ flex: 1 }}>
+                    <View style={commonStyles.row}>
+                      <Text style={[commonStyles.text, { flex: 1 }]}>{card.name}</Text>
+                      {!card.isCommander && !commanderCard && (
+                        <TouchableOpacity
+                          onPress={() => toggleCommander(card.id)}
+                          style={{ padding: 4, marginRight: 8 }}
+                        >
+                          <Icon name="flag-outline" size={18} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                      )}
+                      {card.isCommander && (
+                        <TouchableOpacity
+                          onPress={() => toggleCommander(card.id)}
+                          style={{ padding: 4, marginRight: 8 }}
+                        >
+                          <Icon name="flag" size={18} color={colors.warning} />
+                        </TouchableOpacity>
+                      )}
+                      {isConflicted && (
+                        <Icon name="warning" size={16} color={colors.warning} style={{ marginRight: 8 }} />
+                      )}
+                    </View>
+                    {card.isCommander && (
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.success }]}>
+                        Commander
+                      </Text>
+                    )}
+                  </View>
+                  
+                  <View style={commonStyles.row}>
+                    <TouchableOpacity
+                      onPress={() => updateCardQuantity(card.id, -1)}
+                      style={{
+                        backgroundColor: colors.border,
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 8,
+                      }}
+                    >
+                      <Icon name="remove" size={16} color={colors.text} />
+                    </TouchableOpacity>
+                    
+                    <Text style={[commonStyles.text, { minWidth: 24, textAlign: 'center' }]}>
+                      {card.quantity}
+                    </Text>
+                    
+                    <TouchableOpacity
+                      onPress={() => updateCardQuantity(card.id, 1)}
+                      style={{
+                        backgroundColor: colors.primary,
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginLeft: 8,
+                      }}
+                    >
+                      <Icon name="add" size={16} color={colors.background} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                {card.manaCost && (
-                  <Text style={commonStyles.textSecondary}>
-                    {card.manaCost} • {card.type}
-                  </Text>
-                )}
               </View>
             );
           })}

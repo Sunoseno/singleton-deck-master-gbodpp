@@ -8,7 +8,7 @@ import Icon from '../components/Icon';
 import Button from '../components/Button';
 
 export default function DeckListScreen() {
-  const { decks, loading, activeDeck, setActiveDeck } = useDecks();
+  const { decks, setActiveDeck } = useDecks();
 
   const handleDeckPress = (deckId: string) => {
     router.push(`/deck/${deckId}`);
@@ -17,94 +17,107 @@ export default function DeckListScreen() {
   const handleSetActive = async (deckId: string) => {
     try {
       await setActiveDeck(deckId);
-      console.log('Deck set as active:', deckId);
+      console.log('Deck set as active');
     } catch (error) {
       console.log('Error setting active deck:', error);
     }
   };
 
-  if (loading) {
-    return (
-      <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={commonStyles.text}>Loading decks...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={commonStyles.container}>
       <View style={[commonStyles.section, { paddingTop: 20 }]}>
-        <View style={commonStyles.row}>
-          <Text style={commonStyles.title}>MTG Decks</Text>
-          <TouchableOpacity
-            onPress={() => router.push('/add-deck')}
-            style={{ padding: 8 }}
-          >
-            <Icon name="add" size={28} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
+        <Text style={[commonStyles.title, { textAlign: 'center', marginBottom: 20 }]}>
+          MTG Deck Manager
+        </Text>
         
-        {activeDeck && (
-          <View style={[commonStyles.badge, { marginTop: 8 }]}>
-            <Text style={commonStyles.badgeText}>
-              Active: {activeDeck.name}
-            </Text>
-          </View>
-        )}
+        <Button
+          text="Add New Deck"
+          onPress={() => router.push('/add-deck')}
+          style={{ marginBottom: 20 }}
+        />
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
         {decks.length === 0 ? (
-          <View style={{ alignItems: 'center', marginTop: 40 }}>
-            <Text style={commonStyles.textSecondary}>No decks yet</Text>
-            <Text style={commonStyles.textSecondary}>Tap + to add your first deck</Text>
+          <View style={[commonStyles.card, { alignItems: 'center', paddingVertical: 40 }]}>
+            <Icon name="library-outline" size={48} color={colors.textSecondary} />
+            <Text style={[commonStyles.text, { marginTop: 16, textAlign: 'center' }]}>
+              No decks yet
+            </Text>
+            <Text style={[commonStyles.textSecondary, { textAlign: 'center', marginTop: 8 }]}>
+              Add your first deck to get started
+            </Text>
           </View>
         ) : (
-          decks.map((deck) => (
-            <TouchableOpacity
-              key={deck.id}
-              style={deck.isActive ? commonStyles.activeCard : commonStyles.card}
-              onPress={() => handleDeckPress(deck.id)}
-            >
-              <View style={commonStyles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[commonStyles.subtitle, { marginBottom: 4 }]}>
-                    {deck.name}
-                  </Text>
-                  <Text style={commonStyles.textSecondary}>
-                    Commander: {deck.commander.name}
-                  </Text>
-                  <Text style={commonStyles.textSecondary}>
-                    {deck.cards.length} cards
-                  </Text>
-                </View>
-                
-                <View style={{ alignItems: 'center', gap: 8 }}>
-                  {deck.isActive ? (
-                    <View style={[commonStyles.badge, { backgroundColor: colors.success }]}>
-                      <Text style={commonStyles.badgeText}>ACTIVE</Text>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      onPress={() => handleSetActive(deck.id)}
-                      style={{
-                        backgroundColor: colors.primary,
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        borderRadius: 6,
-                      }}
-                    >
-                      <Text style={{ color: colors.background, fontSize: 12, fontWeight: '600' }}>
-                        SET ACTIVE
+          decks.map((deck) => {
+            const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
+            const commanderCard = deck.cards.find(card => card.isCommander);
+            
+            return (
+              <TouchableOpacity
+                key={deck.id}
+                onPress={() => handleDeckPress(deck.id)}
+                style={[
+                  commonStyles.card,
+                  { marginBottom: 12 },
+                  deck.isActive && { borderColor: colors.success, borderWidth: 2 }
+                ]}
+              >
+                <View style={commonStyles.row}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={commonStyles.subtitle}>{deck.name}</Text>
+                    <Text style={commonStyles.textSecondary}>
+                      {totalCards} cards • {deck.cards.length} unique
+                    </Text>
+                    {commanderCard ? (
+                      <Text style={[commonStyles.textSecondary, { color: colors.success }]}>
+                        Commander: {commanderCard.name}
                       </Text>
-                    </TouchableOpacity>
-                  )}
+                    ) : (
+                      <Text style={[commonStyles.textSecondary, { color: colors.warning }]}>
+                        No commander selected
+                      </Text>
+                    )}
+                  </View>
                   
-                  <Icon name="chevron-forward" size={20} color={colors.textSecondary} />
+                  <View style={{ alignItems: 'flex-end' }}>
+                    {deck.isActive ? (
+                      <View style={[commonStyles.badge, { backgroundColor: colors.success }]}>
+                        <Text style={commonStyles.badgeText}>ACTIVE</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleSetActive(deck.id);
+                        }}
+                        style={{
+                          backgroundColor: colors.primary,
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: 6,
+                        }}
+                      >
+                        <Text style={{ color: colors.background, fontSize: 12, fontWeight: '600' }}>
+                          SET ACTIVE
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeckPress(deck.id);
+                      }}
+                      style={{ marginTop: 8, padding: 4 }}
+                    >
+                      <Icon name="chevron-forward" size={20} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
     </View>
