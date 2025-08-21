@@ -269,6 +269,32 @@ export const useDecks = () => {
     return conflictsByDeck;
   }, [getCardConflicts]);
 
+  // NEW: Function to get deck information for a specific card
+  const getCardDeckInfo = useCallback((cardName: string): { currentDeck: string | null; otherDecks: string[] } => {
+    console.log('Getting deck info for card:', cardName);
+    
+    // Find all decks that contain this card
+    const decksWithCard = decks.filter(deck => 
+      deck.cards.some(card => card.name.toLowerCase() === cardName.toLowerCase())
+    );
+    
+    if (decksWithCard.length === 0) {
+      return { currentDeck: null, otherDecks: [] };
+    }
+    
+    // Find where the card is currently located
+    const cardLocation = findCardLocation(cardName, decks);
+    const currentDeck = cardLocation?.deckName || null;
+    
+    // Get all other decks that also need this card
+    const otherDecks = decksWithCard
+      .filter(deck => deck.name !== currentDeck)
+      .map(deck => deck.name);
+    
+    console.log('Card deck info:', { currentDeck, otherDecks });
+    return { currentDeck, otherDecks };
+  }, [decks, findCardLocation]);
+
   const enrichCardWithScryfall = useCallback(async (cardName: string): Promise<{ card: any; imagePath: string | null } | null> => {
     try {
       console.log('Enriching card with Scryfall data:', cardName);
@@ -291,6 +317,7 @@ export const useDecks = () => {
     setActiveDeck,
     getCardConflicts,
     getConflictsByDeck, // NEW: Export the new function
+    getCardDeckInfo, // NEW: Export the new function
     findCardLocation, // NEW: Export for debugging
     enrichCardWithScryfall,
     refreshDecks: loadDecks,

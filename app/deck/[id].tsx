@@ -12,7 +12,7 @@ import ColorIdentityDisplay from '../../components/ColorIdentityDisplay';
 
 export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { decks, deleteDeck, setActiveDeck, getCardConflicts, getConflictsByDeck, updateDeck, enrichCardWithScryfall } = useDecks();
+  const { decks, deleteDeck, setActiveDeck, getCardConflicts, getConflictsByDeck, updateDeck, enrichCardWithScryfall, getCardDeckInfo } = useDecks();
   const [conflicts, setConflicts] = useState<CardConflict[]>([]);
   const [conflictsByDeck, setConflictsByDeck] = useState<{ [deckName: string]: CardConflict[] }>({});
   const [selectedCardImage, setSelectedCardImage] = useState<{
@@ -20,6 +20,10 @@ export default function DeckDetailScreen() {
     imagePath: string | null;
   } | null>(null);
   const [loadingCardImage, setLoadingCardImage] = useState(false);
+  const [selectedCardInfo, setSelectedCardInfo] = useState<{
+    cardName: string;
+    deckInfo: { currentDeck: string | null; otherDecks: string[] };
+  } | null>(null);
 
   const deck = decks.find(d => d.id === id);
 
@@ -88,6 +92,11 @@ export default function DeckDetailScreen() {
 
   const handleCardPress = async (cardName: string) => {
     console.log('Card pressed:', cardName);
+    
+    // NEW: Get deck information for this card
+    const deckInfo = getCardDeckInfo(cardName);
+    setSelectedCardInfo({ cardName, deckInfo });
+    
     setLoadingCardImage(true);
     
     try {
@@ -454,11 +463,7 @@ export default function DeckDetailScreen() {
                         Partner Commander
                       </Text>
                     )}
-                    {isConflicted && !card.isCommander && !card.isPartnerCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.conflictedCard, marginLeft: 30 }]}>
-                        Not in deck
-                      </Text>
-                    )}
+                    {/* FIXED: Don't show "Not in deck" for blue cards - they're already visually marked */}
                   </View>
                   
                   <View style={commonStyles.row}>
@@ -519,12 +524,17 @@ export default function DeckDetailScreen() {
         </TouchableOpacity>
       </ScrollView>
 
+      {/* Enhanced Card Image Modal with deck information */}
       <CardImageModal
         visible={selectedCardImage !== null}
-        onClose={() => setSelectedCardImage(null)}
+        onClose={() => {
+          setSelectedCardImage(null);
+          setSelectedCardInfo(null);
+        }}
         imagePath={selectedCardImage?.imagePath || null}
         cardName={selectedCardImage?.cardName || ''}
         loading={loadingCardImage}
+        deckInfo={selectedCardInfo?.deckInfo}
       />
     </View>
   );

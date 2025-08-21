@@ -30,6 +30,13 @@ export default function DeckListScreen() {
     }
   };
 
+  // FIXED: Sort decks to show active deck first
+  const sortedDecks = [...decks].sort((a, b) => {
+    if (a.isActive && !b.isActive) return -1;
+    if (!a.isActive && b.isActive) return 1;
+    return 0;
+  });
+
   return (
     <View style={commonStyles.container}>
       <View style={[commonStyles.section, { paddingTop: 20 }]}>
@@ -42,7 +49,7 @@ export default function DeckListScreen() {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
-        {decks.length === 0 ? (
+        {sortedDecks.length === 0 ? (
           <View style={[commonStyles.card, { alignItems: 'center', paddingVertical: 40 }]}>
             <Icon name="library-outline" size={48} color={colors.textSecondary} />
             <Text style={[commonStyles.text, { marginTop: 16, textAlign: 'center' }]}>
@@ -50,7 +57,7 @@ export default function DeckListScreen() {
             </Text>
           </View>
         ) : (
-          decks.map((deck) => {
+          sortedDecks.map((deck) => {
             const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
             const commanderCard = deck.cards.find(card => card.isCommander);
             const partnerCommanderCards = deck.cards.filter(card => card.isPartnerCommander);
