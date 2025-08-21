@@ -201,10 +201,10 @@ export default function AddDeckScreen() {
       return;
     }
 
-    if (totalCards !== 100) {
+    if (totalCards < 100) {
       Alert.alert(
         'Incomplete Deck',
-        `Your deck has ${totalCards} cards. MTG Commander decks need exactly 100 cards (including commander). Do you want to save anyway?`,
+        `Your deck has ${totalCards} cards. MTG Commander decks need at least 100 cards (including commander). Do you want to save anyway?`,
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Save Anyway', onPress: saveDeck },
@@ -346,7 +346,7 @@ export default function AddDeckScreen() {
 
         <View style={commonStyles.card}>
           <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>
-            Add Card ({totalCards}/100)
+            Add Card ({totalCards} cards)
           </Text>
           
           <Text style={[commonStyles.text, { marginBottom: 8 }]}>Card Name</Text>

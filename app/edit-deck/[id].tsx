@@ -309,7 +309,7 @@ export default function EditDeckScreen() {
 
         <View style={commonStyles.card}>
           <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>
-            Add Card ({totalCards}/100)
+            Add Card ({totalCards} cards)
           </Text>
           
           <Text style={[commonStyles.text, { marginBottom: 8 }]}>Card Name</Text>

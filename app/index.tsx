@@ -50,9 +50,6 @@ export default function DeckListScreen() {
           </View>
         ) : (
           decks.map((deck) => {
-            const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
-            const commanderCard = deck.cards.find(card => card.isCommander);
-            
             return (
               <TouchableOpacity
                 key={deck.id}
@@ -66,18 +63,6 @@ export default function DeckListScreen() {
                 <View style={commonStyles.row}>
                   <View style={{ flex: 1 }}>
                     <Text style={commonStyles.subtitle}>{deck.name}</Text>
-                    <Text style={commonStyles.textSecondary}>
-                      {totalCards} cards • {deck.cards.length} unique
-                    </Text>
-                    {commanderCard ? (
-                      <Text style={[commonStyles.textSecondary, { color: colors.success }]}>
-                        Commander: {commanderCard.name}
-                      </Text>
-                    ) : (
-                      <Text style={[commonStyles.textSecondary, { color: colors.warning }]}>
-                        No commander selected
-                      </Text>
-                    )}
                   </View>
                   
                   <View style={{ alignItems: 'flex-end' }}>
