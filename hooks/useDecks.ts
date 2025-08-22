@@ -38,12 +38,8 @@ export const useDecks = () => {
     try {
       console.log('Adding deck:', deck.name);
       
-      // Sort cards alphabetically by name before saving
-      const sortedCards = [...deck.cards].sort((a, b) => a.name.localeCompare(b.name));
-      console.log('Cards sorted alphabetically:', sortedCards.map(c => c.name));
-      
       // Calculate color identity for the deck by fetching commander data from Scryfall
-      const commanders = sortedCards.filter(card => card.isCommander || card.isPartnerCommander);
+      const commanders = deck.cards.filter(card => card.isCommander || card.isPartnerCommander);
       console.log('Found commanders for color identity calculation:', commanders.map(c => c.name));
       
       let colorIdentity: string[] = [];
@@ -65,10 +61,9 @@ export const useDecks = () => {
       colorIdentity = [...new Set(colorIdentity)].sort();
       console.log('Final deck color identity:', colorIdentity);
       
-      // Create the new deck with proper defaults and sorted cards
+      // Create the new deck with proper defaults
       const newDeckData = { 
         ...deck, 
-        cards: sortedCards,
         colorIdentity, 
         isActive: deck.isActive !== undefined ? deck.isActive : true 
       };
@@ -124,14 +119,10 @@ export const useDecks = () => {
     try {
       console.log('Updating deck:', deckId);
       
-      // If cards are being updated, sort them alphabetically and recalculate color identity
+      // If cards are being updated, recalculate color identity
       let finalUpdates = { ...updates };
       if (updates.cards) {
-        // Sort cards alphabetically
-        finalUpdates.cards = [...updates.cards].sort((a, b) => a.name.localeCompare(b.name));
-        console.log('Cards sorted alphabetically during update:', finalUpdates.cards.map(c => c.name));
-        
-        const commanders = finalUpdates.cards.filter(card => card.isCommander || card.isPartnerCommander);
+        const commanders = updates.cards.filter(card => card.isCommander || card.isPartnerCommander);
         console.log('Recalculating color identity for commanders:', commanders.map(c => c.name));
         
         let colorIdentity: string[] = [];
