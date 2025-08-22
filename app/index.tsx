@@ -1,7 +1,7 @@
 
 import { Text, View, ScrollView, TouchableOpacity } from 'react-native';
 import { useState, useEffect } from 'react';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useDecks } from '../hooks/useDecks';
 import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
@@ -9,9 +9,10 @@ import { useTranslations } from '../utils/localization';
 import Button from '../components/Button';
 import Icon from '../components/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useCallback } from 'react';
 
 export default function DeckListScreen() {
-  const { decks, setActiveDeck } = useDecks();
+  const { decks, setActiveDeck, refreshDecks } = useDecks();
   const { settings } = useSettings();
   const { colors, styles } = useTheme();
   const t = useTranslations(settings?.language || 'en');
@@ -20,6 +21,14 @@ export default function DeckListScreen() {
     console.log('DeckListScreen: Decks updated:', decks.length);
     console.log('DeckListScreen: Deck order:', decks.map(d => ({ name: d.name, isActive: d.isActive, colorIdentity: d.colorIdentity })));
   }, [decks]);
+
+  // FIXED: Refresh deck list when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('DeckListScreen: Screen focused, refreshing deck list');
+      refreshDecks();
+    }, [refreshDecks])
+  );
 
   const handleDeckPress = (deckId: string) => {
     console.log('DeckListScreen: Deck pressed:', deckId);

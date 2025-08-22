@@ -93,9 +93,30 @@ export const useDecks = () => {
       const newDeck = await deckStorage.addDeck(newDeckData);
       console.log('useDecks: Deck added to storage with ID:', newDeck.id);
       
-      // FIXED: Force reload from storage to ensure consistency
-      console.log('useDecks: Reloading decks from storage after adding new deck');
-      await loadDecks();
+      // FIXED: Immediately update the local state with the new deck instead of reloading
+      setDecks(prevDecks => {
+        const updatedDecks = [...prevDecks];
+        
+        // If this deck is active, deactivate all others in local state
+        if (newDeck.isActive) {
+          updatedDecks.forEach(deck => {
+            deck.isActive = false;
+          });
+        }
+        
+        // Add the new deck
+        updatedDecks.push(newDeck);
+        
+        // Sort: active deck first, then by creation date (newest first)
+        const sortedDecks = updatedDecks.sort((a, b) => {
+          if (a.isActive && !b.isActive) return -1;
+          if (!a.isActive && b.isActive) return 1;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+        
+        console.log('useDecks: Local state updated with new deck:', sortedDecks.map(d => ({ name: d.name, isActive: d.isActive })));
+        return sortedDecks;
+      });
       
       console.log('useDecks: Deck addition completed successfully');
       return newDeck;
@@ -142,13 +163,16 @@ export const useDecks = () => {
     try {
       console.log('useDecks: Deleting deck:', deckId);
       
-      // Delete from storage first
+      // FIXED: Immediately update local state by removing the deck
+      setDecks(prevDecks => {
+        const updatedDecks = prevDecks.filter(deck => deck.id !== deckId);
+        console.log('useDecks: Local state updated after deletion:', updatedDecks.map(d => ({ name: d.name, isActive: d.isActive })));
+        return updatedDecks;
+      });
+      
+      // Delete from storage
       await deckStorage.deleteDeck(deckId);
       console.log('useDecks: Deck deleted from storage');
-      
-      // FIXED: Force reload from storage to ensure consistency
-      console.log('useDecks: Reloading decks from storage after deleting deck');
-      await loadDecks();
     } catch (error) {
       console.log('useDecks: Error deleting deck:', error);
       // Rollback by reloading from storage
