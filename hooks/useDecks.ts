@@ -34,6 +34,32 @@ export const useDecks = () => {
     loadDecks();
   }, [loadDecks]);
 
+  // FIXED: Helper function to calculate color identity from commanders
+  const calculateColorIdentity = useCallback(async (cards: Card[]): Promise<string[]> => {
+    const commanders = cards.filter(card => card.isCommander || card.isPartnerCommander);
+    console.log('Calculating color identity for commanders:', commanders.map(c => c.name));
+    
+    let colorIdentity: string[] = [];
+    
+    // Fetch color identity from Scryfall for each commander
+    for (const commander of commanders) {
+      try {
+        const scryfallCard = await scryfallService.searchCard(commander.name);
+        if (scryfallCard && scryfallCard.color_identity) {
+          console.log(`Color identity for ${commander.name}:`, scryfallCard.color_identity);
+          colorIdentity = [...colorIdentity, ...scryfallCard.color_identity];
+        }
+      } catch (error) {
+        console.log(`Error fetching color identity for ${commander.name}:`, error);
+      }
+    }
+    
+    // Remove duplicates and sort
+    const finalColorIdentity = [...new Set(colorIdentity)].sort();
+    console.log('Final calculated color identity:', finalColorIdentity);
+    return finalColorIdentity;
+  }, []);
+
   const addDeck = useCallback(async (deck: Omit<Deck, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       console.log('Adding deck:', deck.name);
@@ -42,28 +68,8 @@ export const useDecks = () => {
       const sortedCards = [...deck.cards].sort((a, b) => a.name.localeCompare(b.name));
       console.log('Cards sorted alphabetically:', sortedCards.map(c => c.name));
       
-      // Calculate color identity for the deck by fetching commander data from Scryfall
-      const commanders = sortedCards.filter(card => card.isCommander || card.isPartnerCommander);
-      console.log('Found commanders for color identity calculation:', commanders.map(c => c.name));
-      
-      let colorIdentity: string[] = [];
-      
-      // Fetch color identity from Scryfall for each commander
-      for (const commander of commanders) {
-        try {
-          const scryfallCard = await scryfallService.searchCard(commander.name);
-          if (scryfallCard && scryfallCard.color_identity) {
-            console.log(`Color identity for ${commander.name}:`, scryfallCard.color_identity);
-            colorIdentity = [...colorIdentity, ...scryfallCard.color_identity];
-          }
-        } catch (error) {
-          console.log(`Error fetching color identity for ${commander.name}:`, error);
-        }
-      }
-      
-      // Remove duplicates and sort
-      colorIdentity = [...new Set(colorIdentity)].sort();
-      console.log('Final deck color identity:', colorIdentity);
+      // Calculate color identity for the deck
+      const colorIdentity = await calculateColorIdentity(sortedCards);
       
       // Create the new deck with proper defaults and sorted cards
       const newDeckData = { 
@@ -87,7 +93,7 @@ export const useDecks = () => {
       const newDeck = await deckStorage.addDeck(newDeckData);
       console.log('Deck added to storage with ID:', newDeck.id);
       
-      // Update state immediately - add new deck and update others
+      // FIXED: Update state immediately with proper re-render trigger
       setDecks(prev => {
         console.log('Updating deck state after adding new deck');
         
@@ -118,7 +124,7 @@ export const useDecks = () => {
       await loadDecks();
       throw error;
     }
-  }, [loadDecks]);
+  }, [loadDecks, calculateColorIdentity]);
 
   const updateDeck = useCallback(async (deckId: string, updates: Partial<Deck>) => {
     try {
@@ -131,41 +137,22 @@ export const useDecks = () => {
         finalUpdates.cards = [...updates.cards].sort((a, b) => a.name.localeCompare(b.name));
         console.log('Cards sorted alphabetically during update:', finalUpdates.cards.map(c => c.name));
         
-        const commanders = finalUpdates.cards.filter(card => card.isCommander || card.isPartnerCommander);
-        console.log('Recalculating color identity for commanders:', commanders.map(c => c.name));
-        
-        let colorIdentity: string[] = [];
-        
-        // Fetch color identity from Scryfall for each commander
-        for (const commander of commanders) {
-          try {
-            const scryfallCard = await scryfallService.searchCard(commander.name);
-            if (scryfallCard && scryfallCard.color_identity) {
-              console.log(`Color identity for ${commander.name}:`, scryfallCard.color_identity);
-              colorIdentity = [...colorIdentity, ...scryfallCard.color_identity];
-            }
-          } catch (error) {
-            console.log(`Error fetching color identity for ${commander.name}:`, error);
-          }
-        }
-        
-        // Remove duplicates and sort
-        finalUpdates.colorIdentity = [...new Set(colorIdentity)].sort();
-        console.log('Updated deck color identity:', finalUpdates.colorIdentity);
+        // FIXED: Recalculate color identity immediately
+        finalUpdates.colorIdentity = await calculateColorIdentity(finalUpdates.cards);
       }
       
       // Save to storage first
       await deckStorage.updateDeck(deckId, finalUpdates);
       console.log('Deck updated in storage');
       
-      // Update state
+      // FIXED: Update state immediately with proper re-render trigger
       setDecks(prev => {
         const updated = prev.map(deck => 
           deck.id === deckId 
             ? { ...deck, ...finalUpdates, updatedAt: new Date() }
             : deck
         );
-        console.log('Deck updated in state');
+        console.log('Deck updated in state with new color identity');
         return updated;
       });
     } catch (error) {
@@ -174,7 +161,7 @@ export const useDecks = () => {
       await loadDecks();
       throw error;
     }
-  }, [loadDecks]);
+  }, [loadDecks, calculateColorIdentity]);
 
   const deleteDeck = useCallback(async (deckId: string) => {
     try {

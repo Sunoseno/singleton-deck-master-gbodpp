@@ -87,44 +87,24 @@ export default function DeckListScreen() {
     return colors;
   };
 
-  // Get text color based on background gradient
+  // FIXED: Get text color based on background gradient - only white for exclusively black
   const getTextColor = (colorIdentity: string[]): string => {
+    console.log('Getting text color for color identity:', colorIdentity);
+    
     if (!colorIdentity || colorIdentity.length === 0) {
       // Colorless - use default text color
+      console.log('Colorless deck - using default text color');
       return colors.text;
     }
 
-    // If only black, use white text
+    // FIXED: Only use white text if the color identity is EXCLUSIVELY black
     if (colorIdentity.length === 1 && colorIdentity[0] === 'B') {
+      console.log('Exclusively black deck - using white text');
       return '#FFFFFF';
     }
 
-    // If black is in a multi-color identity, use white text for better contrast
-    if (colorIdentity.includes('B')) {
-      return '#FFFFFF';
-    }
-
-    // For blue, use white text for better contrast
-    if (colorIdentity.includes('U') && colorIdentity.length === 1) {
-      return '#FFFFFF';
-    }
-
-    // For green, use white text for better contrast
-    if (colorIdentity.includes('G') && colorIdentity.length === 1) {
-      return '#FFFFFF';
-    }
-
-    // For red, use white text for better contrast
-    if (colorIdentity.includes('R') && colorIdentity.length === 1) {
-      return '#FFFFFF';
-    }
-
-    // For multi-color combinations with dark colors, use white
-    if (colorIdentity.includes('U') || colorIdentity.includes('G') || colorIdentity.includes('R')) {
-      return '#FFFFFF';
-    }
-
-    // Default to dark text for light backgrounds
+    // For all other cases (including multi-color with black), use default text color
+    console.log('Not exclusively black - using default text color');
     return colors.text;
   };
 

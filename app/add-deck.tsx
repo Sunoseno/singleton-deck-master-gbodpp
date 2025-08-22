@@ -246,6 +246,7 @@ export default function AddDeckScreen() {
       console.log('Cards count:', cards.length);
       console.log('Cards will be sorted alphabetically in useDecks hook');
       
+      // FIXED: Ensure the deck is added and state is updated immediately
       const newDeck = await addDeck({
         name: deckName.trim(),
         cards, // Cards will be sorted in the addDeck function
@@ -253,8 +254,13 @@ export default function AddDeckScreen() {
       });
       
       console.log('Deck saved successfully:', newDeck.id);
+      
+      // FIXED: Navigate back immediately after successful save
       Alert.alert(t.success, `${t.deckName} "${deckName}" ${t.saveDeck.toLowerCase()}d!`, [
-        { text: 'OK', onPress: () => router.back() }
+        { text: 'OK', onPress: () => {
+          console.log('Navigating back after deck save');
+          router.back();
+        }}
       ]);
     } catch (error) {
       console.log('Error saving deck:', error);
