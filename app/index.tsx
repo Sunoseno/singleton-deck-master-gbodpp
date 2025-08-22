@@ -17,26 +17,26 @@ export default function DeckListScreen() {
   const t = useTranslations(settings?.language || 'en');
 
   useEffect(() => {
-    console.log('Decks updated:', decks.length);
-    console.log('Deck order:', decks.map(d => ({ name: d.name, isActive: d.isActive })));
+    console.log('DeckListScreen: Decks updated:', decks.length);
+    console.log('DeckListScreen: Deck order:', decks.map(d => ({ name: d.name, isActive: d.isActive, colorIdentity: d.colorIdentity })));
   }, [decks]);
 
   const handleDeckPress = (deckId: string) => {
-    console.log('Deck pressed:', deckId);
+    console.log('DeckListScreen: Deck pressed:', deckId);
     router.push(`/deck/${deckId}`);
   };
 
   const handleSetActive = async (deckId: string) => {
-    console.log('Set active pressed for deck:', deckId);
+    console.log('DeckListScreen: Set active pressed for deck:', deckId);
     try {
       await setActiveDeck(deckId);
-      console.log('Deck set as active successfully');
+      console.log('DeckListScreen: Deck set as active successfully');
     } catch (error) {
-      console.log('Error setting active deck:', error);
+      console.log('DeckListScreen: Error setting active deck:', error);
     }
   };
 
-  // Get color gradient for deck background
+  // Get color gradient for deck background with improved contrast logic
   const getDeckGradientColors = (colorIdentity: string[]): string[] => {
     const colorMap: { [key: string]: string } = {
       'W': '#FFFBD5', // White
@@ -52,18 +52,59 @@ export default function DeckListScreen() {
     }
 
     if (colorIdentity.length === 1) {
-      // Single color - gradient from light to dark
-      const baseColor = colorMap[colorIdentity[0]] || '#E0E0E0';
+      const color = colorIdentity[0];
+      const baseColor = colorMap[color] || '#E0E0E0';
+      
+      // For black, create a gradient from dark grey to black
+      if (color === 'B') {
+        return ['#404040', '#150B00'];
+      }
+      
+      // For other single colors, create a gradient
       return [baseColor, baseColor + '80']; // Add transparency for gradient effect
     }
 
-    // Multiple colors - use all colors in gradient
-    return colorIdentity.map(color => colorMap[color] || '#E0E0E0');
+    // Multiple colors - handle black positioning and create proper gradient
+    const colors = colorIdentity.map(color => colorMap[color] || '#E0E0E0');
+    
+    // If black is in the gradient, move it to the right side (end)
+    if (colorIdentity.includes('B')) {
+      const blackIndex = colorIdentity.indexOf('B');
+      const reorderedIdentity = [...colorIdentity];
+      const reorderedColors = [...colors];
+      
+      // Remove black from its current position
+      reorderedIdentity.splice(blackIndex, 1);
+      reorderedColors.splice(blackIndex, 1);
+      
+      // Add black to the end
+      reorderedIdentity.push('B');
+      reorderedColors.push(colorMap['B']);
+      
+      return reorderedColors;
+    }
+
+    return colors;
+  };
+
+  // FIXED: Get text color based on background gradient - only white for exclusively black
+  const getTextColor = (colorIdentity: string[]): string => {
+    console.log('DeckListScreen: Getting text color for color identity:', colorIdentity);
+    
+    // FIXED: Only use white text if the color identity is EXCLUSIVELY black (single color 'B')
+    if (colorIdentity && colorIdentity.length === 1 && colorIdentity[0] === 'B') {
+      console.log('DeckListScreen: Exclusively black deck - using white text');
+      return '#FFFFFF';
+    }
+
+    // For all other cases (including colorless, multi-color with black, or any other combination), use default text color
+    console.log('DeckListScreen: Not exclusively black - using default text color:', colors.text);
+    return colors.text;
   };
 
   // Sort decks to show active deck first, maintain insertion order for others
   const sortedDecks = (() => {
-    console.log('Sorting decks, current order:', decks.map(d => ({ name: d.name, isActive: d.isActive })));
+    console.log('DeckListScreen: Sorting decks, current order:', decks.map(d => ({ name: d.name, isActive: d.isActive })));
     
     // The decks array should already be in the correct order from useDecks
     // Active deck should be first, others maintain their order
@@ -83,7 +124,7 @@ export default function DeckListScreen() {
       result = decks;
     }
     
-    console.log('Final sorted order:', result.map(d => ({ name: d.name, isActive: d.isActive })));
+    console.log('DeckListScreen: Final sorted order:', result.map(d => ({ name: d.name, isActive: d.isActive })));
     return result;
   })();
 
@@ -120,7 +161,10 @@ export default function DeckListScreen() {
             const partnerCommanderCards = deck.cards.filter(card => card.isPartnerCommander);
             const gradientColors = getDeckGradientColors(deck.colorIdentity || []);
             
-            console.log(`Deck ${deck.name} color identity:`, deck.colorIdentity, 'gradient colors:', gradientColors);
+            // FIXED: Calculate text color properly and ensure it's used correctly
+            const calculatedTextColor = getTextColor(deck.colorIdentity || []);
+            
+            console.log(`DeckListScreen: Deck ${deck.name} color identity:`, deck.colorIdentity, 'gradient colors:', gradientColors, 'calculated text color:', calculatedTextColor);
             
             return (
               <TouchableOpacity
@@ -142,13 +186,14 @@ export default function DeckListScreen() {
                 >
                   <View style={styles.row}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.subtitle, { marginBottom: 8, color: colors.text }]}>
+                      {/* FIXED: Ensure text color is applied correctly */}
+                      <Text style={[styles.subtitle, { marginBottom: 8, color: calculatedTextColor }]}>
                         {deck.name}
                       </Text>
                       
                       {/* Commander names - each on separate line, no labels */}
                       {commanderCard && (
-                        <Text style={[styles.textSecondary, { color: colors.commander, marginBottom: 4 }]}>
+                        <Text style={[styles.textSecondary, { color: calculatedTextColor === '#FFFFFF' ? '#FFD700' : colors.commander, marginBottom: 4 }]}>
                           {commanderCard.name}
                         </Text>
                       )}
@@ -158,7 +203,7 @@ export default function DeckListScreen() {
                           {partnerCommanderCards.map((partner, index) => (
                             <Text 
                               key={index}
-                              style={[styles.textSecondary, { color: colors.partnerCommander, marginBottom: 4 }]}
+                              style={[styles.textSecondary, { color: calculatedTextColor === '#FFFFFF' ? '#FF6B6B' : colors.partnerCommander, marginBottom: 4 }]}
                             >
                               {partner.name}
                             </Text>
@@ -167,7 +212,7 @@ export default function DeckListScreen() {
                       )}
                       
                       {!commanderCard && partnerCommanderCards.length === 0 && (
-                        <Text style={[styles.textSecondary, { color: colors.warning, marginBottom: 4 }]}>
+                        <Text style={[styles.textSecondary, { color: calculatedTextColor === '#FFFFFF' ? '#FFA500' : colors.warning, marginBottom: 4 }]}>
                           {t.noCommanderSelected || 'No commander selected'}
                         </Text>
                       )}
@@ -186,14 +231,20 @@ export default function DeckListScreen() {
                           handleSetActive(deck.id);
                         }}
                         style={{
-                          backgroundColor: colors.primary,
+                          backgroundColor: calculatedTextColor === '#FFFFFF' ? 'rgba(255, 255, 255, 0.2)' : colors.primary,
                           paddingHorizontal: 12,
                           paddingVertical: 6,
                           borderRadius: 6,
                           marginLeft: 12,
+                          borderWidth: calculatedTextColor === '#FFFFFF' ? 1 : 0,
+                          borderColor: calculatedTextColor === '#FFFFFF' ? '#FFFFFF' : 'transparent',
                         }}
                       >
-                        <Text style={{ color: colors.background, fontSize: 12, fontWeight: '600' }}>
+                        <Text style={{ 
+                          color: calculatedTextColor === '#FFFFFF' ? '#FFFFFF' : colors.background, 
+                          fontSize: 12, 
+                          fontWeight: '600' 
+                        }}>
                           {t.setActive || 'SET ACTIVE'}
                         </Text>
                       </TouchableOpacity>
