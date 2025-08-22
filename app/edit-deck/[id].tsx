@@ -302,7 +302,6 @@ export default function EditDeckScreen() {
     try {
       console.log('Saving deck changes for:', deckName);
       
-      // FIXED: Update deck and trigger immediate color identity recalculation
       await updateDeck(deck.id, {
         name: deckName.trim(),
         cards,
