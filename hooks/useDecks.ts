@@ -93,25 +93,9 @@ export const useDecks = () => {
       const newDeck = await deckStorage.addDeck(newDeckData);
       console.log('useDecks: Deck added to storage with ID:', newDeck.id);
       
-      // FIXED: Immediately update the state with the new deck instead of reloading everything
-      console.log('useDecks: Updating state with new deck immediately');
-      setDecks(prevDecks => {
-        // If the new deck is active, deactivate all others in state
-        const updatedPrevDecks = newDeckData.isActive 
-          ? prevDecks.map(d => ({ ...d, isActive: false }))
-          : prevDecks;
-        
-        // Add the new deck and sort properly
-        const allDecks = [...updatedPrevDecks, newDeck];
-        const sortedDecks = allDecks.sort((a, b) => {
-          if (a.isActive && !b.isActive) return -1;
-          if (!a.isActive && b.isActive) return 1;
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-        
-        console.log('useDecks: State updated with new deck, final order:', sortedDecks.map(d => ({ name: d.name, isActive: d.isActive })));
-        return sortedDecks;
-      });
+      // FIXED: Force a complete reload from storage to ensure consistency
+      console.log('useDecks: Reloading all decks from storage to ensure consistency');
+      await loadDecks();
       
       console.log('useDecks: Deck addition completed successfully');
       return newDeck;
@@ -121,7 +105,7 @@ export const useDecks = () => {
       await loadDecks();
       throw error;
     }
-  }, [calculateColorIdentity]);
+  }, [calculateColorIdentity, loadDecks]);
 
   const updateDeck = useCallback(async (deckId: string, updates: Partial<Deck>) => {
     try {
@@ -143,32 +127,16 @@ export const useDecks = () => {
       await deckStorage.updateDeck(deckId, finalUpdates);
       console.log('useDecks: Deck updated in storage');
       
-      // FIXED: Update state immediately instead of reloading everything
-      console.log('useDecks: Updating state immediately');
-      setDecks(prevDecks => {
-        const updatedDecks = prevDecks.map(deck => 
-          deck.id === deckId 
-            ? { ...deck, ...finalUpdates, updatedAt: new Date() }
-            : deck
-        );
-        
-        // Re-sort if needed
-        const sortedDecks = updatedDecks.sort((a, b) => {
-          if (a.isActive && !b.isActive) return -1;
-          if (!a.isActive && b.isActive) return 1;
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-        
-        console.log('useDecks: State updated, final order:', sortedDecks.map(d => ({ name: d.name, isActive: d.isActive, colorIdentity: d.colorIdentity })));
-        return sortedDecks;
-      });
+      // FIXED: Force a complete reload from storage to ensure consistency
+      console.log('useDecks: Reloading all decks from storage to ensure consistency');
+      await loadDecks();
     } catch (error) {
       console.log('useDecks: Error updating deck:', error);
       // Rollback by reloading from storage
       await loadDecks();
       throw error;
     }
-  }, [calculateColorIdentity]);
+  }, [calculateColorIdentity, loadDecks]);
 
   const deleteDeck = useCallback(async (deckId: string) => {
     try {
@@ -178,20 +146,16 @@ export const useDecks = () => {
       await deckStorage.deleteDeck(deckId);
       console.log('useDecks: Deck deleted from storage');
       
-      // FIXED: Update state immediately instead of reloading everything
-      console.log('useDecks: Updating state immediately');
-      setDecks(prevDecks => {
-        const filteredDecks = prevDecks.filter(deck => deck.id !== deckId);
-        console.log('useDecks: State updated, remaining decks:', filteredDecks.map(d => ({ name: d.name, isActive: d.isActive })));
-        return filteredDecks;
-      });
+      // FIXED: Force a complete reload from storage to ensure consistency
+      console.log('useDecks: Reloading all decks from storage to ensure consistency');
+      await loadDecks();
     } catch (error) {
       console.log('useDecks: Error deleting deck:', error);
       // Rollback by reloading from storage
       await loadDecks();
       throw error;
     }
-  }, []);
+  }, [loadDecks]);
 
   const setActiveDeck = useCallback(async (deckId: string) => {
     try {
@@ -210,32 +174,16 @@ export const useDecks = () => {
       }
       console.log('useDecks: Active deck updated in storage');
       
-      // FIXED: Update state immediately instead of reloading everything
-      console.log('useDecks: Updating state immediately');
-      setDecks(prevDecks => {
-        const updatedDecks = prevDecks.map(deck => ({
-          ...deck,
-          isActive: deck.id === deckId,
-          updatedAt: deck.id === deckId ? new Date() : deck.updatedAt
-        }));
-        
-        // Re-sort to put active deck first
-        const sortedDecks = updatedDecks.sort((a, b) => {
-          if (a.isActive && !b.isActive) return -1;
-          if (!a.isActive && b.isActive) return 1;
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-        
-        console.log('useDecks: State updated, final order:', sortedDecks.map(d => ({ name: d.name, isActive: d.isActive })));
-        return sortedDecks;
-      });
+      // FIXED: Force a complete reload from storage to ensure consistency
+      console.log('useDecks: Reloading all decks from storage to ensure consistency');
+      await loadDecks();
     } catch (error) {
       console.log('useDecks: Error setting active deck:', error);
       // Rollback by reloading from storage
       await loadDecks();
       throw error;
     }
-  }, []);
+  }, [loadDecks]);
 
   // Find where a card is currently located (last active deck that contains it)
   const findCardLocation = useCallback((cardName: string, allDecks: Deck[]): { deckId: string; deckName: string } | null => {

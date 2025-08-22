@@ -97,9 +97,9 @@ export default function DeckListScreen() {
       return '#FFFFFF';
     }
 
-    // For all other cases (including colorless, multi-color with black, or any other combination), use default text color
-    console.log('DeckListScreen: Not exclusively black - using default text color:', colors.text);
-    return colors.text;
+    // FIXED: For all other cases, use black text (#212121) instead of theme colors.text
+    console.log('DeckListScreen: Not exclusively black - using black text');
+    return '#212121';
   };
 
   // Sort decks to show active deck first, maintain insertion order for others

@@ -261,7 +261,7 @@ export default function AddDeckScreen() {
       
       console.log('AddDeckScreen: Deck saved successfully:', newDeck.id);
       
-      // FIXED: Navigate back immediately after successful save without showing alert
+      // FIXED: Navigate back immediately after successful save
       console.log('AddDeckScreen: Navigating back after deck save');
       router.back();
     } catch (error) {
