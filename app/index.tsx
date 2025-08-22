@@ -17,22 +17,22 @@ export default function DeckListScreen() {
   const t = useTranslations(settings?.language || 'en');
 
   useEffect(() => {
-    console.log('Decks updated:', decks.length);
-    console.log('Deck order:', decks.map(d => ({ name: d.name, isActive: d.isActive })));
+    console.log('DeckListScreen: Decks updated:', decks.length);
+    console.log('DeckListScreen: Deck order:', decks.map(d => ({ name: d.name, isActive: d.isActive, colorIdentity: d.colorIdentity })));
   }, [decks]);
 
   const handleDeckPress = (deckId: string) => {
-    console.log('Deck pressed:', deckId);
+    console.log('DeckListScreen: Deck pressed:', deckId);
     router.push(`/deck/${deckId}`);
   };
 
   const handleSetActive = async (deckId: string) => {
-    console.log('Set active pressed for deck:', deckId);
+    console.log('DeckListScreen: Set active pressed for deck:', deckId);
     try {
       await setActiveDeck(deckId);
-      console.log('Deck set as active successfully');
+      console.log('DeckListScreen: Deck set as active successfully');
     } catch (error) {
-      console.log('Error setting active deck:', error);
+      console.log('DeckListScreen: Error setting active deck:', error);
     }
   };
 
@@ -89,28 +89,22 @@ export default function DeckListScreen() {
 
   // FIXED: Get text color based on background gradient - only white for exclusively black
   const getTextColor = (colorIdentity: string[]): string => {
-    console.log('Getting text color for color identity:', colorIdentity);
+    console.log('DeckListScreen: Getting text color for color identity:', colorIdentity);
     
-    if (!colorIdentity || colorIdentity.length === 0) {
-      // Colorless - use default text color
-      console.log('Colorless deck - using default text color:', colors.text);
-      return colors.text;
-    }
-
-    // FIXED: Only use white text if the color identity is EXCLUSIVELY black
-    if (colorIdentity.length === 1 && colorIdentity[0] === 'B') {
-      console.log('Exclusively black deck - using white text');
+    // FIXED: Only use white text if the color identity is EXCLUSIVELY black (single color 'B')
+    if (colorIdentity && colorIdentity.length === 1 && colorIdentity[0] === 'B') {
+      console.log('DeckListScreen: Exclusively black deck - using white text');
       return '#FFFFFF';
     }
 
-    // For all other cases (including multi-color with black), use default text color
-    console.log('Not exclusively black - using default text color:', colors.text);
+    // For all other cases (including colorless, multi-color with black, or any other combination), use default text color
+    console.log('DeckListScreen: Not exclusively black - using default text color:', colors.text);
     return colors.text;
   };
 
   // Sort decks to show active deck first, maintain insertion order for others
   const sortedDecks = (() => {
-    console.log('Sorting decks, current order:', decks.map(d => ({ name: d.name, isActive: d.isActive })));
+    console.log('DeckListScreen: Sorting decks, current order:', decks.map(d => ({ name: d.name, isActive: d.isActive })));
     
     // The decks array should already be in the correct order from useDecks
     // Active deck should be first, others maintain their order
@@ -130,7 +124,7 @@ export default function DeckListScreen() {
       result = decks;
     }
     
-    console.log('Final sorted order:', result.map(d => ({ name: d.name, isActive: d.isActive })));
+    console.log('DeckListScreen: Final sorted order:', result.map(d => ({ name: d.name, isActive: d.isActive })));
     return result;
   })();
 
@@ -170,7 +164,7 @@ export default function DeckListScreen() {
             // FIXED: Calculate text color properly and ensure it's used correctly
             const calculatedTextColor = getTextColor(deck.colorIdentity || []);
             
-            console.log(`Deck ${deck.name} color identity:`, deck.colorIdentity, 'gradient colors:', gradientColors, 'calculated text color:', calculatedTextColor);
+            console.log(`DeckListScreen: Deck ${deck.name} color identity:`, deck.colorIdentity, 'gradient colors:', gradientColors, 'calculated text color:', calculatedTextColor);
             
             return (
               <TouchableOpacity
@@ -192,6 +186,7 @@ export default function DeckListScreen() {
                 >
                   <View style={styles.row}>
                     <View style={{ flex: 1 }}>
+                      {/* FIXED: Ensure text color is applied correctly */}
                       <Text style={[styles.subtitle, { marginBottom: 8, color: calculatedTextColor }]}>
                         {deck.name}
                       </Text>

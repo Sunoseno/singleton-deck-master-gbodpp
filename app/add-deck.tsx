@@ -20,6 +20,7 @@ export default function AddDeckScreen() {
   const [cards, setCards] = useState<Card[]>([]);
   const [newCardName, setNewCardName] = useState('');
   const [importText, setImportText] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const addCard = async () => {
     if (!newCardName.trim()) return;
@@ -64,40 +65,40 @@ export default function AddDeckScreen() {
     
     if (!clickedCard) return;
 
-    console.log('Toggle commander clicked for:', clickedCard.name);
-    console.log('Current commanders:', commanders.length);
-    console.log('Current partner commanders:', partnerCommanders.length);
+    console.log('AddDeckScreen: Toggle commander clicked for:', clickedCard.name);
+    console.log('AddDeckScreen: Current commanders:', commanders.length);
+    console.log('AddDeckScreen: Current partner commanders:', partnerCommanders.length);
 
     setCards(prev => {
       const updated = prev.map(card => {
         if (card.id === cardId) {
           // If clicking on current commander (orange flag)
           if (card.isCommander) {
-            console.log('Clicking orange flag - turning red');
+            console.log('AddDeckScreen: Clicking orange flag - turning red');
             return { ...card, isCommander: false, isPartnerCommander: true };
           }
           
           // If clicking on current partner commander (red flag)
           if (card.isPartnerCommander) {
-            console.log('Clicking red flag - removing commander status');
+            console.log('AddDeckScreen: Clicking red flag - removing commander status');
             return { ...card, isCommander: false, isPartnerCommander: false };
           }
           
           // If no commander exists, make this the commander (orange)
           if (commanders.length === 0 && partnerCommanders.length === 0) {
-            console.log('No commanders - making this commander (orange)');
+            console.log('AddDeckScreen: No commanders - making this commander (orange)');
             return { ...card, isCommander: true, isPartnerCommander: false };
           }
           
           // If there's a commander but no partner, make this partner (red)
           if (commanders.length === 0 && partnerCommanders.length === 1) {
-            console.log('One partner exists - making this partner (red)');
+            console.log('AddDeckScreen: One partner exists - making this partner (red)');
             return { ...card, isCommander: false, isPartnerCommander: true };
           }
           
           // If there's only a commander (orange), make this partner (red)
           if (commanders.length === 1 && partnerCommanders.length === 0) {
-            console.log('One commander exists - making this partner (red)');
+            console.log('AddDeckScreen: One commander exists - making this partner (red)');
             return { ...card, isCommander: false, isPartnerCommander: true };
           }
         }
@@ -210,7 +211,7 @@ export default function AddDeckScreen() {
         Alert.alert(t.success, `${t.imported} ${importedCards.length} ${t.cards.toLowerCase()}`);
       }
     } catch (error) {
-      console.log('Error uploading file:', error);
+      console.log('AddDeckScreen: Error uploading file:', error);
       Alert.alert(t.error, t.failedToRead);
     }
   };
@@ -227,6 +228,8 @@ export default function AddDeckScreen() {
   };
 
   const handleSave = () => {
+    if (saving) return; // Prevent double-tap
+    
     if (!deckName.trim()) {
       Alert.alert(t.error, t.enterDeckNameError);
       return;
@@ -241,10 +244,13 @@ export default function AddDeckScreen() {
   };
 
   const saveDeck = async () => {
+    if (saving) return; // Prevent double execution
+    
+    setSaving(true);
     try {
-      console.log('Saving new deck:', deckName);
-      console.log('Cards count:', cards.length);
-      console.log('Cards will be sorted alphabetically in useDecks hook');
+      console.log('AddDeckScreen: Saving new deck:', deckName);
+      console.log('AddDeckScreen: Cards count:', cards.length);
+      console.log('AddDeckScreen: Cards will be sorted alphabetically in useDecks hook');
       
       // FIXED: Ensure the deck is added and state is updated immediately
       const newDeck = await addDeck({
@@ -253,18 +259,16 @@ export default function AddDeckScreen() {
         isActive: true, // Make new deck active by default
       });
       
-      console.log('Deck saved successfully:', newDeck.id);
+      console.log('AddDeckScreen: Deck saved successfully:', newDeck.id);
       
-      // FIXED: Navigate back immediately after successful save
-      Alert.alert(t.success, `${t.deckName} "${deckName}" ${t.saveDeck.toLowerCase()}d!`, [
-        { text: 'OK', onPress: () => {
-          console.log('Navigating back after deck save');
-          router.back();
-        }}
-      ]);
+      // FIXED: Navigate back immediately after successful save without showing alert
+      console.log('AddDeckScreen: Navigating back after deck save');
+      router.back();
     } catch (error) {
-      console.log('Error saving deck:', error);
+      console.log('AddDeckScreen: Error saving deck:', error);
       Alert.alert(t.error, t.saveError);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -308,7 +312,8 @@ export default function AddDeckScreen() {
           <Text style={styles.title}>{t.addNewDeck}</Text>
           <TouchableOpacity
             onPress={handleSave}
-            style={{ marginLeft: 16 }}
+            style={{ marginLeft: 16, opacity: saving ? 0.5 : 1 }}
+            disabled={saving}
           >
             <Icon name="checkmark" size={24} color={colors.primary} />
           </TouchableOpacity>
@@ -325,6 +330,7 @@ export default function AddDeckScreen() {
             placeholderTextColor={colors.textSecondary}
             value={deckName}
             onChangeText={setDeckName}
+            editable={!saving}
           />
         </View>
 
@@ -340,6 +346,7 @@ export default function AddDeckScreen() {
               value={newCardName}
               onChangeText={setNewCardName}
               onSubmitEditing={addCard}
+              editable={!saving}
             />
             <TouchableOpacity
               onPress={addCard}
@@ -348,7 +355,9 @@ export default function AddDeckScreen() {
                 paddingHorizontal: 16,
                 paddingVertical: 12,
                 borderRadius: 8,
+                opacity: saving ? 0.5 : 1,
               }}
+              disabled={saving}
             >
               <Icon name="add" size={20} color={colors.background} />
             </TouchableOpacity>
@@ -366,19 +375,22 @@ export default function AddDeckScreen() {
             value={importText}
             onChangeText={setImportText}
             multiline
+            editable={!saving}
           />
           
           <View style={styles.row}>
             <TouchableOpacity
               onPress={handleImportDecklist}
-              style={[styles.button, { flex: 1, marginRight: 8 }]}
+              style={[styles.button, { flex: 1, marginRight: 8, opacity: saving ? 0.5 : 1 }]}
+              disabled={saving}
             >
               <Text style={styles.buttonText}>{t.importText}</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
               onPress={handleUploadFile}
-              style={[styles.secondaryButton, { flex: 1, marginLeft: 8 }]}
+              style={[styles.secondaryButton, { flex: 1, marginLeft: 8, opacity: saving ? 0.5 : 1 }]}
+              disabled={saving}
             >
               <Text style={[styles.buttonText, { color: colors.text }]}>{t.uploadFile}</Text>
             </TouchableOpacity>
@@ -390,7 +402,11 @@ export default function AddDeckScreen() {
           <View style={[styles.card, { marginBottom: 20 }]}>
             <View style={styles.row}>
               <Text style={styles.subtitle}>{t.cards} ({sortedCards.length})</Text>
-              <TouchableOpacity onPress={clearAllCards}>
+              <TouchableOpacity 
+                onPress={clearAllCards}
+                disabled={saving}
+                style={{ opacity: saving ? 0.5 : 1 }}
+              >
                 <Icon name="trash-outline" size={20} color={colors.error} />
               </TouchableOpacity>
             </View>
@@ -418,7 +434,8 @@ export default function AddDeckScreen() {
                       {shouldShowFlag(card) && (
                         <TouchableOpacity
                           onPress={() => toggleCommander(card.id)}
-                          style={{ padding: 4, marginRight: 8 }}
+                          style={{ padding: 4, marginRight: 8, opacity: saving ? 0.5 : 1 }}
+                          disabled={saving}
                         >
                           <Icon 
                             name={getFlagIcon(card)} 
@@ -464,7 +481,9 @@ export default function AddDeckScreen() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         marginRight: 8,
+                        opacity: saving ? 0.5 : 1,
                       }}
+                      disabled={saving}
                     >
                       <Icon name="remove" size={16} color={colors.text} />
                     </TouchableOpacity>
@@ -483,7 +502,9 @@ export default function AddDeckScreen() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         marginLeft: 8,
+                        opacity: saving ? 0.5 : 1,
                       }}
+                      disabled={saving}
                     >
                       <Icon name="add" size={16} color={colors.background} />
                     </TouchableOpacity>
