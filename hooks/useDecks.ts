@@ -93,28 +93,9 @@ export const useDecks = () => {
       const newDeck = await deckStorage.addDeck(newDeckData);
       console.log('Deck added to storage with ID:', newDeck.id);
       
-      // FIXED: Update state immediately with proper re-render trigger
-      setDecks(prev => {
-        console.log('Updating deck state after adding new deck');
-        
-        // If new deck is active, deactivate all existing decks
-        const updatedExistingDecks = newDeck.isActive 
-          ? prev.map(d => ({ ...d, isActive: false }))
-          : prev;
-        
-        // Add new deck to the beginning and sort properly
-        const allDecks = [newDeck, ...updatedExistingDecks];
-        
-        // Sort: active deck first, then by creation date (newest first)
-        const sortedDecks = allDecks.sort((a, b) => {
-          if (a.isActive && !b.isActive) return -1;
-          if (!a.isActive && b.isActive) return 1;
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-        
-        console.log('New deck state:', sortedDecks.map(d => ({ name: d.name, isActive: d.isActive })));
-        return sortedDecks;
-      });
+      // FIXED: Force a complete reload from storage to ensure consistency
+      console.log('Reloading all decks from storage after adding new deck');
+      await loadDecks();
       
       console.log('Deck addition completed successfully');
       return newDeck;
@@ -145,16 +126,9 @@ export const useDecks = () => {
       await deckStorage.updateDeck(deckId, finalUpdates);
       console.log('Deck updated in storage');
       
-      // FIXED: Update state immediately with proper re-render trigger
-      setDecks(prev => {
-        const updated = prev.map(deck => 
-          deck.id === deckId 
-            ? { ...deck, ...finalUpdates, updatedAt: new Date() }
-            : deck
-        );
-        console.log('Deck updated in state with new color identity');
-        return updated;
-      });
+      // FIXED: Force a complete reload from storage to ensure consistency
+      console.log('Reloading all decks from storage after updating deck');
+      await loadDecks();
     } catch (error) {
       console.log('Error updating deck:', error);
       // Rollback by reloading from storage
@@ -171,12 +145,9 @@ export const useDecks = () => {
       await deckStorage.deleteDeck(deckId);
       console.log('Deck deleted from storage');
       
-      // Update state - remove deck
-      setDecks(prev => {
-        const updated = prev.filter(deck => deck.id !== deckId);
-        console.log('Deck removed from state');
-        return updated;
-      });
+      // FIXED: Force a complete reload from storage to ensure consistency
+      console.log('Reloading all decks from storage after deleting deck');
+      await loadDecks();
     } catch (error) {
       console.log('Error deleting deck:', error);
       // Rollback by reloading from storage
@@ -202,32 +173,9 @@ export const useDecks = () => {
       }
       console.log('Active deck updated in storage');
       
-      // Update deck order - move active deck to top, maintain order for others
-      setDecks(prev => {
-        const activeDeck = prev.find(d => d.id === deckId);
-        const otherDecks = prev.filter(d => d.id !== deckId);
-        
-        if (!activeDeck) {
-          console.log('Deck not found:', deckId);
-          return prev;
-        }
-        
-        // Update active status and move to top
-        const updatedActiveDeck = { 
-          ...activeDeck, 
-          isActive: true, 
-          updatedAt: new Date() 
-        };
-        const updatedOtherDecks = otherDecks.map(deck => ({ 
-          ...deck, 
-          isActive: false 
-        }));
-        
-        // Return with active deck first, then others in original order
-        const result = [updatedActiveDeck, ...updatedOtherDecks];
-        console.log('Active deck moved to top in state, others maintain order');
-        return result;
-      });
+      // FIXED: Force a complete reload from storage to ensure consistency
+      console.log('Reloading all decks from storage after setting active deck');
+      await loadDecks();
     } catch (error) {
       console.log('Error setting active deck:', error);
       // Rollback by reloading from storage

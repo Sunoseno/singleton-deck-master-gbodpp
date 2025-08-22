@@ -93,7 +93,7 @@ export default function DeckListScreen() {
     
     if (!colorIdentity || colorIdentity.length === 0) {
       // Colorless - use default text color
-      console.log('Colorless deck - using default text color');
+      console.log('Colorless deck - using default text color:', colors.text);
       return colors.text;
     }
 
@@ -104,7 +104,7 @@ export default function DeckListScreen() {
     }
 
     // For all other cases (including multi-color with black), use default text color
-    console.log('Not exclusively black - using default text color');
+    console.log('Not exclusively black - using default text color:', colors.text);
     return colors.text;
   };
 
@@ -166,9 +166,11 @@ export default function DeckListScreen() {
             const commanderCard = deck.cards.find(card => card.isCommander);
             const partnerCommanderCards = deck.cards.filter(card => card.isPartnerCommander);
             const gradientColors = getDeckGradientColors(deck.colorIdentity || []);
-            const textColor = getTextColor(deck.colorIdentity || []);
             
-            console.log(`Deck ${deck.name} color identity:`, deck.colorIdentity, 'gradient colors:', gradientColors, 'text color:', textColor);
+            // FIXED: Calculate text color properly and ensure it's used correctly
+            const calculatedTextColor = getTextColor(deck.colorIdentity || []);
+            
+            console.log(`Deck ${deck.name} color identity:`, deck.colorIdentity, 'gradient colors:', gradientColors, 'calculated text color:', calculatedTextColor);
             
             return (
               <TouchableOpacity
@@ -190,13 +192,13 @@ export default function DeckListScreen() {
                 >
                   <View style={styles.row}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.subtitle, { marginBottom: 8, color: textColor }]}>
+                      <Text style={[styles.subtitle, { marginBottom: 8, color: calculatedTextColor }]}>
                         {deck.name}
                       </Text>
                       
                       {/* Commander names - each on separate line, no labels */}
                       {commanderCard && (
-                        <Text style={[styles.textSecondary, { color: textColor === '#FFFFFF' ? '#FFD700' : colors.commander, marginBottom: 4 }]}>
+                        <Text style={[styles.textSecondary, { color: calculatedTextColor === '#FFFFFF' ? '#FFD700' : colors.commander, marginBottom: 4 }]}>
                           {commanderCard.name}
                         </Text>
                       )}
@@ -206,7 +208,7 @@ export default function DeckListScreen() {
                           {partnerCommanderCards.map((partner, index) => (
                             <Text 
                               key={index}
-                              style={[styles.textSecondary, { color: textColor === '#FFFFFF' ? '#FF6B6B' : colors.partnerCommander, marginBottom: 4 }]}
+                              style={[styles.textSecondary, { color: calculatedTextColor === '#FFFFFF' ? '#FF6B6B' : colors.partnerCommander, marginBottom: 4 }]}
                             >
                               {partner.name}
                             </Text>
@@ -215,7 +217,7 @@ export default function DeckListScreen() {
                       )}
                       
                       {!commanderCard && partnerCommanderCards.length === 0 && (
-                        <Text style={[styles.textSecondary, { color: textColor === '#FFFFFF' ? '#FFA500' : colors.warning, marginBottom: 4 }]}>
+                        <Text style={[styles.textSecondary, { color: calculatedTextColor === '#FFFFFF' ? '#FFA500' : colors.warning, marginBottom: 4 }]}>
                           {t.noCommanderSelected || 'No commander selected'}
                         </Text>
                       )}
@@ -234,17 +236,17 @@ export default function DeckListScreen() {
                           handleSetActive(deck.id);
                         }}
                         style={{
-                          backgroundColor: textColor === '#FFFFFF' ? 'rgba(255, 255, 255, 0.2)' : colors.primary,
+                          backgroundColor: calculatedTextColor === '#FFFFFF' ? 'rgba(255, 255, 255, 0.2)' : colors.primary,
                           paddingHorizontal: 12,
                           paddingVertical: 6,
                           borderRadius: 6,
                           marginLeft: 12,
-                          borderWidth: textColor === '#FFFFFF' ? 1 : 0,
-                          borderColor: textColor === '#FFFFFF' ? '#FFFFFF' : 'transparent',
+                          borderWidth: calculatedTextColor === '#FFFFFF' ? 1 : 0,
+                          borderColor: calculatedTextColor === '#FFFFFF' ? '#FFFFFF' : 'transparent',
                         }}
                       >
                         <Text style={{ 
-                          color: textColor === '#FFFFFF' ? '#FFFFFF' : colors.background, 
+                          color: calculatedTextColor === '#FFFFFF' ? '#FFFFFF' : colors.background, 
                           fontSize: 12, 
                           fontWeight: '600' 
                         }}>
