@@ -225,14 +225,19 @@ export default function AddDeckScreen() {
 
   const saveDeck = async () => {
     try {
-      await addDeck({
+      console.log('Saving new deck:', deckName);
+      console.log('Cards count:', cards.length);
+      
+      const newDeck = await addDeck({
         name: deckName.trim(),
         cards,
-        isActive: false,
+        isActive: true, // Make new deck active by default
       });
       
-      Alert.alert(t.success, `${t.deckName} "${deckName}" ${t.saveDeck.toLowerCase()}d!`);
-      router.back();
+      console.log('Deck saved successfully:', newDeck.id);
+      Alert.alert(t.success, `${t.deckName} "${deckName}" ${t.saveDeck.toLowerCase()}d!`, [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
     } catch (error) {
       console.log('Error saving deck:', error);
       Alert.alert(t.error, t.saveError);

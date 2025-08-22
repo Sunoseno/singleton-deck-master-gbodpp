@@ -13,7 +13,16 @@ export const useDecks = () => {
     try {
       const loadedDecks = await deckStorage.getDecks();
       console.log('Loaded decks from storage:', loadedDecks.length);
-      setDecks(loadedDecks);
+      
+      // Sort decks: active deck first, then by creation date (newest first)
+      const sortedDecks = loadedDecks.sort((a, b) => {
+        if (a.isActive && !b.isActive) return -1;
+        if (!a.isActive && b.isActive) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      
+      setDecks(sortedDecks);
+      console.log('Decks loaded and sorted:', sortedDecks.map(d => ({ name: d.name, isActive: d.isActive })));
     } catch (error) {
       console.log('Error loading decks:', error);
     } finally {
@@ -52,32 +61,59 @@ export const useDecks = () => {
       colorIdentity = [...new Set(colorIdentity)].sort();
       console.log('Final deck color identity:', colorIdentity);
       
-      // Save to storage first to get the real ID
-      const newDeck = await deckStorage.addDeck({ ...deck, colorIdentity, isActive: true });
-      console.log('Deck added to storage with ID:', newDeck.id);
+      // Create the new deck with proper defaults
+      const newDeckData = { 
+        ...deck, 
+        colorIdentity, 
+        isActive: deck.isActive !== undefined ? deck.isActive : true 
+      };
       
-      // Deactivate all other decks in storage
-      const allDecks = await deckStorage.getDecks();
-      for (const existingDeck of allDecks) {
-        if (existingDeck.id !== newDeck.id && existingDeck.isActive) {
-          await deckStorage.updateDeck(existingDeck.id, { isActive: false });
+      // If this deck should be active, deactivate all other decks first
+      if (newDeckData.isActive) {
+        const allDecks = await deckStorage.getDecks();
+        for (const existingDeck of allDecks) {
+          if (existingDeck.isActive) {
+            await deckStorage.updateDeck(existingDeck.id, { isActive: false });
+          }
         }
       }
       
-      // Update state: add new deck to beginning and deactivate others
+      // Save to storage to get the real ID
+      const newDeck = await deckStorage.addDeck(newDeckData);
+      console.log('Deck added to storage with ID:', newDeck.id);
+      
+      // Update state immediately - add new deck and update others
       setDecks(prev => {
-        console.log('Adding new deck to state and deactivating others');
-        const updatedDecks = prev.map(d => ({ ...d, isActive: false })); // Deactivate all existing decks
-        return [newDeck, ...updatedDecks]; // Add new deck to beginning
+        console.log('Updating deck state after adding new deck');
+        
+        // If new deck is active, deactivate all existing decks
+        const updatedExistingDecks = newDeck.isActive 
+          ? prev.map(d => ({ ...d, isActive: false }))
+          : prev;
+        
+        // Add new deck to the beginning and sort properly
+        const allDecks = [newDeck, ...updatedExistingDecks];
+        
+        // Sort: active deck first, then by creation date (newest first)
+        const sortedDecks = allDecks.sort((a, b) => {
+          if (a.isActive && !b.isActive) return -1;
+          if (!a.isActive && b.isActive) return 1;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+        
+        console.log('New deck state:', sortedDecks.map(d => ({ name: d.name, isActive: d.isActive })));
+        return sortedDecks;
       });
       
       console.log('Deck addition completed successfully');
       return newDeck;
     } catch (error) {
       console.log('Error adding deck:', error);
+      // Reload from storage on error
+      await loadDecks();
       throw error;
     }
-  }, []);
+  }, [loadDecks]);
 
   const updateDeck = useCallback(async (deckId: string, updates: Partial<Deck>) => {
     try {
