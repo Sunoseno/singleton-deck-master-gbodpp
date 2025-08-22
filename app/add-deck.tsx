@@ -33,19 +33,28 @@ export default function AddDeckScreen() {
         name: newCardName.trim(),
         quantity: 1,
       };
-      setCards(prev => [...prev, newCard]);
+      setCards(prev => {
+        // Add new card and sort alphabetically
+        const updatedCards = [...prev, newCard];
+        return updatedCards.sort((a, b) => a.name.localeCompare(b.name));
+      });
     }
     setNewCardName('');
   };
 
   const updateCardQuantity = (cardId: string, change: number) => {
-    setCards(prev => prev.map(card => {
-      if (card.id === cardId) {
-        const newQuantity = Math.max(0, card.quantity + change);
-        return newQuantity > 0 ? { ...card, quantity: newQuantity } : card;
-      }
-      return card;
-    }).filter(card => card.quantity > 0));
+    setCards(prev => {
+      const updated = prev.map(card => {
+        if (card.id === cardId) {
+          const newQuantity = Math.max(0, card.quantity + change);
+          return newQuantity > 0 ? { ...card, quantity: newQuantity } : card;
+        }
+        return card;
+      }).filter(card => card.quantity > 0);
+      
+      // Keep cards sorted alphabetically
+      return updated.sort((a, b) => a.name.localeCompare(b.name));
+    });
   };
 
   const toggleCommander = (cardId: string) => {
@@ -59,40 +68,45 @@ export default function AddDeckScreen() {
     console.log('Current commanders:', commanders.length);
     console.log('Current partner commanders:', partnerCommanders.length);
 
-    setCards(prev => prev.map(card => {
-      if (card.id === cardId) {
-        // If clicking on current commander (orange flag)
-        if (card.isCommander) {
-          console.log('Clicking orange flag - turning red');
-          return { ...card, isCommander: false, isPartnerCommander: true };
+    setCards(prev => {
+      const updated = prev.map(card => {
+        if (card.id === cardId) {
+          // If clicking on current commander (orange flag)
+          if (card.isCommander) {
+            console.log('Clicking orange flag - turning red');
+            return { ...card, isCommander: false, isPartnerCommander: true };
+          }
+          
+          // If clicking on current partner commander (red flag)
+          if (card.isPartnerCommander) {
+            console.log('Clicking red flag - removing commander status');
+            return { ...card, isCommander: false, isPartnerCommander: false };
+          }
+          
+          // If no commander exists, make this the commander (orange)
+          if (commanders.length === 0 && partnerCommanders.length === 0) {
+            console.log('No commanders - making this commander (orange)');
+            return { ...card, isCommander: true, isPartnerCommander: false };
+          }
+          
+          // If there's a commander but no partner, make this partner (red)
+          if (commanders.length === 0 && partnerCommanders.length === 1) {
+            console.log('One partner exists - making this partner (red)');
+            return { ...card, isCommander: false, isPartnerCommander: true };
+          }
+          
+          // If there's only a commander (orange), make this partner (red)
+          if (commanders.length === 1 && partnerCommanders.length === 0) {
+            console.log('One commander exists - making this partner (red)');
+            return { ...card, isCommander: false, isPartnerCommander: true };
+          }
         }
-        
-        // If clicking on current partner commander (red flag)
-        if (card.isPartnerCommander) {
-          console.log('Clicking red flag - removing commander status');
-          return { ...card, isCommander: false, isPartnerCommander: false };
-        }
-        
-        // If no commander exists, make this the commander (orange)
-        if (commanders.length === 0 && partnerCommanders.length === 0) {
-          console.log('No commanders - making this commander (orange)');
-          return { ...card, isCommander: true, isPartnerCommander: false };
-        }
-        
-        // If there's a commander but no partner, make this partner (red)
-        if (commanders.length === 0 && partnerCommanders.length === 1) {
-          console.log('One partner exists - making this partner (red)');
-          return { ...card, isCommander: false, isPartnerCommander: true };
-        }
-        
-        // If there's only a commander (orange), make this partner (red)
-        if (commanders.length === 1 && partnerCommanders.length === 0) {
-          console.log('One commander exists - making this partner (red)');
-          return { ...card, isCommander: false, isPartnerCommander: true };
-        }
-      }
-      return card;
-    }));
+        return card;
+      });
+      
+      // Keep cards sorted alphabetically
+      return updated.sort((a, b) => a.name.localeCompare(b.name));
+    });
   };
 
   const parseDecklistText = (text: string): Card[] => {
@@ -137,7 +151,8 @@ export default function AddDeckScreen() {
       }
     });
 
-    return parsedCards;
+    // Sort parsed cards alphabetically
+    return parsedCards.sort((a, b) => a.name.localeCompare(b.name));
   };
 
   const handleImportDecklist = () => {
@@ -156,7 +171,8 @@ export default function AddDeckScreen() {
         }
       });
       
-      return combined;
+      // Sort combined cards alphabetically
+      return combined.sort((a, b) => a.name.localeCompare(b.name));
     });
     
     setImportText('');
@@ -187,7 +203,8 @@ export default function AddDeckScreen() {
             }
           });
           
-          return combined;
+          // Sort combined cards alphabetically
+          return combined.sort((a, b) => a.name.localeCompare(b.name));
         });
         
         Alert.alert(t.success, `${t.imported} ${importedCards.length} ${t.cards.toLowerCase()}`);
@@ -227,10 +244,11 @@ export default function AddDeckScreen() {
     try {
       console.log('Saving new deck:', deckName);
       console.log('Cards count:', cards.length);
+      console.log('Cards will be sorted alphabetically in useDecks hook');
       
       const newDeck = await addDeck({
         name: deckName.trim(),
-        cards,
+        cards, // Cards will be sorted in the addDeck function
         isActive: true, // Make new deck active by default
       });
       
@@ -266,6 +284,9 @@ export default function AddDeckScreen() {
     if (card.isPartnerCommander) return colors.partnerCommander;
     return colors.textSecondary;
   };
+
+  // Sort cards for display (already sorted in state, but ensure consistency)
+  const sortedCards = [...cards].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <View style={styles.container}>
@@ -359,21 +380,21 @@ export default function AddDeckScreen() {
         </View>
 
         {/* Cards List */}
-        {cards.length > 0 && (
+        {sortedCards.length > 0 && (
           <View style={[styles.card, { marginBottom: 20 }]}>
             <View style={styles.row}>
-              <Text style={styles.subtitle}>{t.cards} ({cards.length})</Text>
+              <Text style={styles.subtitle}>{t.cards} ({sortedCards.length})</Text>
               <TouchableOpacity onPress={clearAllCards}>
                 <Icon name="trash-outline" size={20} color={colors.error} />
               </TouchableOpacity>
             </View>
             
-            {cards.map((card, index) => (
+            {sortedCards.map((card, index) => (
               <View
                 key={card.id}
                 style={{
                   paddingVertical: 12,
-                  borderBottomWidth: index < cards.length - 1 ? 1 : 0,
+                  borderBottomWidth: index < sortedCards.length - 1 ? 1 : 0,
                   borderBottomColor: colors.border,
                   backgroundColor: card.isCommander 
                     ? colors.commander + '20' 
