@@ -93,31 +93,9 @@ export const useDecks = () => {
       const newDeck = await deckStorage.addDeck(newDeckData);
       console.log('useDecks: Deck added to storage with ID:', newDeck.id);
       
-      // FIXED: Update state immediately with the new deck instead of reloading from storage
-      setDecks(prevDecks => {
-        console.log('useDecks: Updating state with new deck');
-        const updatedDecks = [...prevDecks];
-        
-        // If the new deck is active, deactivate all others in state
-        if (newDeck.isActive) {
-          updatedDecks.forEach(deck => {
-            deck.isActive = false;
-          });
-        }
-        
-        // Add the new deck to the beginning of the array
-        updatedDecks.unshift(newDeck);
-        
-        // Sort to ensure active deck is first
-        const sortedDecks = updatedDecks.sort((a, b) => {
-          if (a.isActive && !b.isActive) return -1;
-          if (!a.isActive && b.isActive) return 1;
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-        
-        console.log('useDecks: State updated with new deck order:', sortedDecks.map(d => ({ name: d.name, isActive: d.isActive })));
-        return sortedDecks;
-      });
+      // FIXED: Force reload from storage to ensure consistency
+      console.log('useDecks: Reloading decks from storage after adding new deck');
+      await loadDecks();
       
       console.log('useDecks: Deck addition completed successfully');
       return newDeck;
@@ -149,30 +127,9 @@ export const useDecks = () => {
       await deckStorage.updateDeck(deckId, finalUpdates);
       console.log('useDecks: Deck updated in storage');
       
-      // FIXED: Update state immediately instead of reloading from storage
-      setDecks(prevDecks => {
-        console.log('useDecks: Updating deck in state');
-        const updatedDecks = prevDecks.map(deck => {
-          if (deck.id === deckId) {
-            return {
-              ...deck,
-              ...finalUpdates,
-              updatedAt: new Date(),
-            };
-          }
-          return deck;
-        });
-        
-        // Re-sort to ensure active deck is first
-        const sortedDecks = updatedDecks.sort((a, b) => {
-          if (a.isActive && !b.isActive) return -1;
-          if (!a.isActive && b.isActive) return 1;
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-        
-        console.log('useDecks: State updated after deck update');
-        return sortedDecks;
-      });
+      // FIXED: Force reload from storage to ensure consistency
+      console.log('useDecks: Reloading decks from storage after updating deck');
+      await loadDecks();
     } catch (error) {
       console.log('useDecks: Error updating deck:', error);
       // Rollback by reloading from storage
@@ -189,13 +146,9 @@ export const useDecks = () => {
       await deckStorage.deleteDeck(deckId);
       console.log('useDecks: Deck deleted from storage');
       
-      // FIXED: Update state immediately instead of reloading from storage
-      setDecks(prevDecks => {
-        console.log('useDecks: Removing deck from state');
-        const updatedDecks = prevDecks.filter(deck => deck.id !== deckId);
-        console.log('useDecks: State updated after deck deletion');
-        return updatedDecks;
-      });
+      // FIXED: Force reload from storage to ensure consistency
+      console.log('useDecks: Reloading decks from storage after deleting deck');
+      await loadDecks();
     } catch (error) {
       console.log('useDecks: Error deleting deck:', error);
       // Rollback by reloading from storage
@@ -221,25 +174,9 @@ export const useDecks = () => {
       }
       console.log('useDecks: Active deck updated in storage');
       
-      // FIXED: Update state immediately instead of reloading from storage
-      setDecks(prevDecks => {
-        console.log('useDecks: Updating active deck in state');
-        const updatedDecks = prevDecks.map(deck => ({
-          ...deck,
-          isActive: deck.id === deckId,
-          updatedAt: deck.id === deckId ? new Date() : deck.updatedAt,
-        }));
-        
-        // Re-sort to ensure active deck is first
-        const sortedDecks = updatedDecks.sort((a, b) => {
-          if (a.isActive && !b.isActive) return -1;
-          if (!a.isActive && b.isActive) return 1;
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-        
-        console.log('useDecks: State updated after setting active deck');
-        return sortedDecks;
-      });
+      // FIXED: Force reload from storage to ensure consistency
+      console.log('useDecks: Reloading decks from storage after setting active deck');
+      await loadDecks();
     } catch (error) {
       console.log('useDecks: Error setting active deck:', error);
       // Rollback by reloading from storage
