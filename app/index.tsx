@@ -97,35 +97,18 @@ export default function DeckListScreen() {
       return '#FFFFFF';
     }
 
-    // FIXED: For all other cases, use black text (#212121) instead of theme colors.text
+    // FIXED: For all other cases, use black text (#212121) for better contrast
     console.log('DeckListScreen: Not exclusively black - using black text');
     return '#212121';
   };
 
-  // Sort decks to show active deck first, maintain insertion order for others
-  const sortedDecks = (() => {
-    console.log('DeckListScreen: Sorting decks, current order:', decks.map(d => ({ name: d.name, isActive: d.isActive })));
+  // FIXED: Ensure decks are properly sorted and displayed
+  const displayDecks = (() => {
+    console.log('DeckListScreen: Preparing decks for display, current order:', decks.map(d => ({ name: d.name, isActive: d.isActive })));
     
-    // The decks array should already be in the correct order from useDecks
-    // Active deck should be first, others maintain their order
-    const activeDeck = decks.find(d => d.isActive);
-    const inactiveDecks = decks.filter(d => !d.isActive);
-    
-    let result;
-    if (activeDeck) {
-      // If active deck is already first, keep the order
-      if (decks[0]?.isActive) {
-        result = decks;
-      } else {
-        // Otherwise, move active deck to first position
-        result = [activeDeck, ...inactiveDecks];
-      }
-    } else {
-      result = decks;
-    }
-    
-    console.log('DeckListScreen: Final sorted order:', result.map(d => ({ name: d.name, isActive: d.isActive })));
-    return result;
+    // The decks array from useDecks should already be properly sorted
+    // Active deck first, then by creation date (newest first)
+    return decks;
   })();
 
   return (
@@ -148,7 +131,7 @@ export default function DeckListScreen() {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
-        {sortedDecks.length === 0 ? (
+        {displayDecks.length === 0 ? (
           <View style={[styles.card, { alignItems: 'center', paddingVertical: 40 }]}>
             <Icon name="library-outline" size={48} color={colors.textSecondary} />
             <Text style={[styles.text, { marginTop: 16, textAlign: 'center' }]}>
@@ -156,7 +139,7 @@ export default function DeckListScreen() {
             </Text>
           </View>
         ) : (
-          sortedDecks.map((deck) => {
+          displayDecks.map((deck) => {
             const commanderCard = deck.cards.find(card => card.isCommander);
             const partnerCommanderCards = deck.cards.filter(card => card.isPartnerCommander);
             const gradientColors = getDeckGradientColors(deck.colorIdentity || []);
@@ -186,14 +169,28 @@ export default function DeckListScreen() {
                 >
                   <View style={styles.row}>
                     <View style={{ flex: 1 }}>
-                      {/* FIXED: Ensure text color is applied correctly */}
-                      <Text style={[styles.subtitle, { marginBottom: 8, color: calculatedTextColor }]}>
+                      {/* FIXED: Ensure text color is applied correctly with explicit color override */}
+                      <Text style={[
+                        styles.subtitle, 
+                        { 
+                          marginBottom: 8, 
+                          color: calculatedTextColor,
+                          fontWeight: '600' // Ensure text is bold for better visibility
+                        }
+                      ]}>
                         {deck.name}
                       </Text>
                       
                       {/* Commander names - each on separate line, no labels */}
                       {commanderCard && (
-                        <Text style={[styles.textSecondary, { color: calculatedTextColor === '#FFFFFF' ? '#FFD700' : colors.commander, marginBottom: 4 }]}>
+                        <Text style={[
+                          styles.textSecondary, 
+                          { 
+                            color: calculatedTextColor === '#FFFFFF' ? '#FFD700' : colors.commander, 
+                            marginBottom: 4,
+                            fontSize: 14
+                          }
+                        ]}>
                           {commanderCard.name}
                         </Text>
                       )}
@@ -203,7 +200,14 @@ export default function DeckListScreen() {
                           {partnerCommanderCards.map((partner, index) => (
                             <Text 
                               key={index}
-                              style={[styles.textSecondary, { color: calculatedTextColor === '#FFFFFF' ? '#FF6B6B' : colors.partnerCommander, marginBottom: 4 }]}
+                              style={[
+                                styles.textSecondary, 
+                                { 
+                                  color: calculatedTextColor === '#FFFFFF' ? '#FF6B6B' : colors.partnerCommander, 
+                                  marginBottom: 4,
+                                  fontSize: 14
+                                }
+                              ]}
                             >
                               {partner.name}
                             </Text>
@@ -212,7 +216,14 @@ export default function DeckListScreen() {
                       )}
                       
                       {!commanderCard && partnerCommanderCards.length === 0 && (
-                        <Text style={[styles.textSecondary, { color: calculatedTextColor === '#FFFFFF' ? '#FFA500' : colors.warning, marginBottom: 4 }]}>
+                        <Text style={[
+                          styles.textSecondary, 
+                          { 
+                            color: calculatedTextColor === '#FFFFFF' ? '#FFA500' : colors.warning, 
+                            marginBottom: 4,
+                            fontSize: 14
+                          }
+                        ]}>
                           {t.noCommanderSelected || 'No commander selected'}
                         </Text>
                       )}
