@@ -125,18 +125,38 @@ export default function DeckDetailScreen() {
   };
 
   const handleEditDeck = () => {
+    console.log('DeckDetailScreen: Edit button pressed!');
+    
     if (!deck) {
       console.log('DeckDetailScreen: No deck found, cannot edit');
+      Alert.alert('Error', 'No deck found to edit');
       return;
     }
     
     console.log('DeckDetailScreen: Navigating to edit deck screen for:', deck.name, 'with ID:', deck.id);
+    console.log('DeckDetailScreen: Router object:', router);
     
     try {
-      router.push(`/edit-deck/${deck.id}`);
-      console.log('DeckDetailScreen: Navigation to edit deck initiated');
+      const editPath = `/edit-deck/${deck.id}`;
+      console.log('DeckDetailScreen: Attempting to navigate to:', editPath);
+      
+      // Try multiple navigation methods
+      if (router.push) {
+        router.push(editPath);
+        console.log('DeckDetailScreen: Used router.push');
+      } else if (router.navigate) {
+        router.navigate(editPath);
+        console.log('DeckDetailScreen: Used router.navigate');
+      } else {
+        console.log('DeckDetailScreen: No navigation method available on router');
+        Alert.alert('Error', 'Navigation not available');
+        return;
+      }
+      
+      console.log('DeckDetailScreen: Navigation to edit deck initiated successfully');
     } catch (error) {
       console.log('DeckDetailScreen: Error navigating to edit deck:', error);
+      Alert.alert('Navigation Error', `Failed to open edit screen: ${error.message}`);
     }
   };
 
@@ -174,7 +194,12 @@ export default function DeckDetailScreen() {
           
           <TouchableOpacity
             onPress={handleEditDeck}
-            style={{ padding: 8 }}
+            style={{ 
+              padding: 8,
+              backgroundColor: 'rgba(0,0,0,0.1)', // Temporary background to see if button is there
+              borderRadius: 4
+            }}
+            activeOpacity={0.7}
           >
             <Icon name="create" size={24} color={colors.primary} />
           </TouchableOpacity>

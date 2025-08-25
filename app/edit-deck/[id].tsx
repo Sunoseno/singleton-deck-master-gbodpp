@@ -11,7 +11,11 @@ import Icon from '../../components/Icon';
 import * as DocumentPicker from 'expo-document-picker';
 
 export default function EditDeckScreen() {
+  console.log('EditDeckScreen: Component mounted');
+  
   const { id } = useLocalSearchParams<{ id: string }>();
+  console.log('EditDeckScreen: Received ID parameter:', id);
+  
   const { decks, updateDeck } = useDecks();
   const { settings } = useSettings();
   const { colors, styles } = useTheme();
@@ -25,14 +29,20 @@ export default function EditDeckScreen() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    console.log('EditDeckScreen: useEffect triggered with id:', id);
+    console.log('EditDeckScreen: Available decks:', decks.map(d => ({ id: d.id, name: d.name })));
+    
     const foundDeck = decks.find(d => d.id === id);
     if (foundDeck) {
-      console.log('EditDeckScreen: Deck found:', foundDeck.name);
+      console.log('EditDeckScreen: Deck found:', foundDeck.name, 'with ID:', foundDeck.id);
+      console.log('EditDeckScreen: Deck has', foundDeck.cards.length, 'cards');
       setDeck(foundDeck);
       setDeckName(foundDeck.name);
       setCards([...foundDeck.cards].sort((a, b) => a.name.localeCompare(b.name)));
     } else {
-      console.log('EditDeckScreen: Deck not found, navigating back');
+      console.log('EditDeckScreen: Deck not found with ID:', id);
+      console.log('EditDeckScreen: Deck IDs available:', decks.map(d => d.id));
+      console.log('EditDeckScreen: Navigating back due to missing deck');
       router.back();
     }
   }, [id, decks]);

@@ -185,37 +185,31 @@ export const useDecks = () => {
     try {
       console.log('useDecks: Setting active deck:', deckId);
       
-      // FIXED: Update local state immediately with proper sorting that preserves order
+      // FIXED: Update local state immediately with proper order preservation
       setDecks(prevDecks => {
         console.log('useDecks: Current deck order before activation:', prevDecks.map(d => ({ name: d.name, isActive: d.isActive })));
         
-        // Find the deck to activate and all other decks
+        // Find the deck to activate
         const deckToActivate = prevDecks.find(d => d.id === deckId);
-        const otherDecks = prevDecks.filter(d => d.id !== deckId);
         
         if (!deckToActivate) {
           console.log('useDecks: Deck to activate not found');
           return prevDecks;
         }
         
-        // Create the activated deck with updated timestamp
-        const activatedDeck = {
-          ...deckToActivate,
-          isActive: true,
-          updatedAt: new Date()
-        };
-        
-        // Deactivate all other decks but preserve their order
-        const deactivatedDecks = otherDecks.map(deck => ({
+        // Create new array with proper ordering
+        const newDecks = prevDecks.map(deck => ({
           ...deck,
-          isActive: false
+          isActive: deck.id === deckId,
+          updatedAt: deck.id === deckId ? new Date() : deck.updatedAt
         }));
         
-        // FIXED: Put active deck at top, then preserve the original order of remaining decks
-        // Sort the remaining decks by their original creation date to maintain order
-        deactivatedDecks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        // FIXED: Move the activated deck to the top while preserving the order of all other decks
+        const activatedDeck = newDecks.find(d => d.id === deckId)!;
+        const otherDecks = newDecks.filter(d => d.id !== deckId);
         
-        const finalOrder = [activatedDeck, ...deactivatedDecks];
+        // Keep the original order of other decks (they are already in the correct order from prevDecks)
+        const finalOrder = [activatedDeck, ...otherDecks];
         
         console.log('useDecks: New deck order after activation:', finalOrder.map(d => ({ name: d.name, isActive: d.isActive })));
         return finalOrder;
