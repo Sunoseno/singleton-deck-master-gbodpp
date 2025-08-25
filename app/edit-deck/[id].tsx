@@ -16,21 +16,27 @@ export default function EditDeckScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   console.log('EditDeckScreen: Received ID parameter:', id);
   
-  const { decks, updateDeck } = useDecks();
+  const { decks, updateDeck, loading } = useDecks();
   const { settings } = useSettings();
   const { colors, styles } = useTheme();
   const t = useTranslations(settings?.language || 'en');
   
   const [deck, setDeck] = useState(decks.find(d => d.id === id));
-  const [deckName, setDeckName] = useState(deck?.name || '');
-  const [cards, setCards] = useState<Card[]>(deck?.cards || []);
+  const [deckName, setDeckName] = useState('');
+  const [cards, setCards] = useState<Card[]>([]);
   const [newCardName, setNewCardName] = useState('');
   const [importText, setImportText] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    console.log('EditDeckScreen: useEffect triggered with id:', id);
+    console.log('EditDeckScreen: useEffect triggered with id:', id, 'loading:', loading);
     console.log('EditDeckScreen: Available decks:', decks.map(d => ({ id: d.id, name: d.name })));
+    
+    // Don't do anything while still loading
+    if (loading) {
+      console.log('EditDeckScreen: Still loading decks, waiting...');
+      return;
+    }
     
     const foundDeck = decks.find(d => d.id === id);
     if (foundDeck) {
@@ -45,7 +51,7 @@ export default function EditDeckScreen() {
       console.log('EditDeckScreen: Navigating back due to missing deck');
       router.back();
     }
-  }, [id, decks]);
+  }, [id, decks, loading]);
 
   const addCard = async () => {
     if (!newCardName.trim()) return;
@@ -259,7 +265,7 @@ export default function EditDeckScreen() {
       console.log('EditDeckScreen: Saving deck updates:', deckName);
       console.log('EditDeckScreen: Cards count:', cards.length);
       
-      // FIXED: Update the deck with new data, which will trigger color identity recalculation
+      // Update the deck with new data, which will trigger color identity recalculation
       await updateDeck(deck.id, {
         name: deckName.trim(),
         cards, // Cards will be sorted and color identity recalculated in updateDeck
@@ -298,10 +304,32 @@ export default function EditDeckScreen() {
     return colors.textSecondary;
   };
 
+  // Show loading state while decks are being loaded
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.text}>Loading deck...</Text>
+      </View>
+    );
+  }
+
+  // Show error state if deck not found after loading is complete
   if (!deck) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={styles.text}>Deck not found</Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{
+            backgroundColor: colors.primary,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            borderRadius: 8,
+            marginTop: 16,
+          }}
+        >
+          <Text style={{ color: colors.background }}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
