@@ -12,7 +12,7 @@ import ColorIdentityDisplay from '../../components/ColorIdentityDisplay';
 
 export default function DeckDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { decks, deleteDeck, setActiveDeck, getCardConflicts, getConflictsByDeck, updateDeck, enrichCardWithScryfall, getCardDeckInfo } = useDecks();
+  const { decks, deleteDeck, setActiveDeck, getCardConflicts, getConflictsByDeck, enrichCardWithScryfall, getCardDeckInfo } = useDecks();
   const [conflicts, setConflicts] = useState<CardConflict[]>([]);
   const [conflictsByDeck, setConflictsByDeck] = useState<{ [deckName: string]: CardConflict[] }>({});
   const [selectedCardImage, setSelectedCardImage] = useState<{
@@ -93,7 +93,7 @@ export default function DeckDetailScreen() {
   const handleCardPress = async (cardName: string) => {
     console.log('Card pressed:', cardName);
     
-    // NEW: Get deck information for this card
+    // Get deck information for this card
     const deckInfo = getCardDeckInfo(cardName);
     setSelectedCardInfo({ cardName, deckInfo });
     
@@ -123,81 +123,6 @@ export default function DeckDetailScreen() {
     }
   };
 
-  const updateCardQuantity = async (cardId: string, change: number) => {
-    if (!deck) return;
-
-    const updatedCards = deck.cards.map(card => {
-      if (card.id === cardId) {
-        const newQuantity = Math.max(0, card.quantity + change);
-        return newQuantity === 0 ? null : { ...card, quantity: newQuantity };
-      }
-      return card;
-    }).filter(Boolean) as Card[];
-
-    try {
-      await updateDeck(deck.id, { cards: updatedCards });
-      console.log('Updated card quantity');
-    } catch (error) {
-      console.log('Error updating card quantity:', error);
-    }
-  };
-
-  const toggleCommander = async (cardId: string) => {
-    if (!deck) return;
-
-    const commanders = deck.cards.filter(card => card.isCommander);
-    const partnerCommanders = deck.cards.filter(card => card.isPartnerCommander);
-    const clickedCard = deck.cards.find(card => card.id === cardId);
-    
-    if (!clickedCard) return;
-
-    console.log('Toggle commander clicked for:', clickedCard.name);
-    console.log('Current commanders:', commanders.length);
-    console.log('Current partner commanders:', partnerCommanders.length);
-
-    const updatedCards = deck.cards.map(card => {
-      if (card.id === cardId) {
-        // If clicking on current commander (orange flag)
-        if (card.isCommander) {
-          console.log('Clicking orange flag - turning red');
-          return { ...card, isCommander: false, isPartnerCommander: true };
-        }
-        
-        // If clicking on current partner commander (red flag)
-        if (card.isPartnerCommander) {
-          console.log('Clicking red flag - removing commander status');
-          return { ...card, isCommander: false, isPartnerCommander: false };
-        }
-        
-        // If no commander exists, make this the commander (orange)
-        if (commanders.length === 0 && partnerCommanders.length === 0) {
-          console.log('No commanders - making this commander (orange)');
-          return { ...card, isCommander: true, isPartnerCommander: false };
-        }
-        
-        // If there's a commander but no partner, make this partner (red)
-        if (commanders.length === 0 && partnerCommanders.length === 1) {
-          console.log('One partner exists - making this partner (red)');
-          return { ...card, isCommander: false, isPartnerCommander: true };
-        }
-        
-        // If there's only a commander (orange), make this partner (red)
-        if (commanders.length === 1 && partnerCommanders.length === 0) {
-          console.log('One commander exists - making this partner (red)');
-          return { ...card, isCommander: false, isPartnerCommander: true };
-        }
-      }
-      return card;
-    });
-
-    try {
-      await updateDeck(deck.id, { cards: updatedCards });
-      console.log('Updated commander selection');
-    } catch (error) {
-      console.log('Error updating commander:', error);
-    }
-  };
-
   if (!deck) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -209,29 +134,6 @@ export default function DeckDetailScreen() {
   const totalCards = deck.cards.reduce((sum, card) => sum + card.quantity, 0);
   const commanderCard = deck.cards.find(card => card.isCommander);
   const partnerCommanderCards = deck.cards.filter(card => card.isPartnerCommander);
-  const commanders = deck.cards.filter(card => card.isCommander);
-  const partners = deck.cards.filter(card => card.isPartnerCommander);
-
-  const shouldShowFlag = (card: Card) => {
-    // Always show flag for commanders and partner commanders
-    if (card.isCommander || card.isPartnerCommander) return true;
-    
-    // Show flag for other cards only if no commanders exist or if there's only one partner commander
-    return commanders.length === 0 && partners.length <= 1;
-  };
-
-  const getFlagIcon = (card: Card) => {
-    if (card.isCommander) return "flag";
-    if (card.isPartnerCommander) return "flag";
-    return "flag-outline";
-  };
-
-  // FIXED: Use distinct colors for different card types
-  const getFlagColor = (card: Card) => {
-    if (card.isCommander) return colors.commander; // Orange
-    if (card.isPartnerCommander) return colors.partnerCommander; // Red
-    return colors.textSecondary;
-  };
 
   return (
     <View style={commonStyles.container}>
@@ -328,7 +230,7 @@ export default function DeckDetailScreen() {
               {conflicts.length} cards missing, found in {Object.keys(conflictsByDeck).length} other decks
             </Text>
             
-            {/* FIXED: Expandable sections by deck - only showing decks where cards currently are */}
+            {/* Expandable sections by deck - only showing decks where cards currently are */}
             <View style={{ marginBottom: 16 }}>
               <Text style={[commonStyles.text, { fontWeight: '600', marginBottom: 8 }]}>
                 Conflicts by Deck:
@@ -419,87 +321,42 @@ export default function DeckDetailScreen() {
               >
                 <View style={commonStyles.row}>
                   <View style={{ flex: 1 }}>
-                    <View style={[commonStyles.row, { alignItems: 'center' }]}>
-                      {shouldShowFlag(card) && (
-                        <TouchableOpacity
-                          onPress={() => toggleCommander(card.id)}
-                          style={{ padding: 4, marginRight: 8 }}
-                        >
-                          <Icon 
-                            name={getFlagIcon(card)} 
-                            size={18} 
-                            color={getFlagColor(card)} 
-                          />
-                        </TouchableOpacity>
-                      )}
-                      <TouchableOpacity
-                        onPress={() => handleCardPress(card.name)}
-                        style={{ flex: 1 }}
+                    <TouchableOpacity
+                      onPress={() => handleCardPress(card.name)}
+                      style={{ flex: 1 }}
+                    >
+                      <Text 
+                        style={[
+                          commonStyles.text, 
+                          { 
+                            flex: 1,
+                            flexWrap: 'wrap',
+                            lineHeight: 20,
+                            textDecorationLine: 'underline',
+                            color: colors.primary,
+                          }
+                        ]}
+                        numberOfLines={2}
                       >
-                        <Text 
-                          style={[
-                            commonStyles.text, 
-                            { 
-                              flex: 1,
-                              flexWrap: 'wrap',
-                              lineHeight: 20,
-                              textDecorationLine: 'underline',
-                              color: colors.primary,
-                            }
-                          ]}
-                          numberOfLines={2}
-                        >
-                          {card.name}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                        {card.name}
+                      </Text>
+                    </TouchableOpacity>
                     {card.isCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.commander, marginLeft: 30 }]}>
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.commander }]}>
                         Commander
                       </Text>
                     )}
                     {card.isPartnerCommander && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.partnerCommander, marginLeft: 30 }]}>
+                      <Text style={[commonStyles.textSecondary, { fontSize: 12, color: colors.partnerCommander }]}>
                         Partner Commander
                       </Text>
                     )}
-                    {/* FIXED: Don't show "Not in deck" for blue cards - they're already visually marked */}
                   </View>
                   
-                  <View style={commonStyles.row}>
-                    <TouchableOpacity
-                      onPress={() => updateCardQuantity(card.id, -1)}
-                      style={{
-                        backgroundColor: colors.border,
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 8,
-                      }}
-                    >
-                      <Icon name="remove" size={16} color={colors.text} />
-                    </TouchableOpacity>
-                    
-                    <Text style={[commonStyles.text, { minWidth: 24, textAlign: 'center' }]}>
+                  <View style={{ alignItems: 'center', justifyContent: 'center', minWidth: 40 }}>
+                    <Text style={[commonStyles.text, { fontSize: 16, fontWeight: '600' }]}>
                       {card.quantity}
                     </Text>
-                    
-                    <TouchableOpacity
-                      onPress={() => updateCardQuantity(card.id, 1)}
-                      style={{
-                        backgroundColor: colors.primary,
-                        width: 32,
-                        height: 32,
-                        borderRadius: 16,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginLeft: 8,
-                      }}
-                    >
-                      <Icon name="add" size={16} color={colors.background} />
-                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
