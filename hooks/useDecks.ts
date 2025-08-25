@@ -185,25 +185,40 @@ export const useDecks = () => {
     try {
       console.log('useDecks: Setting active deck:', deckId);
       
-      // FIXED: Update local state immediately with proper sorting
+      // FIXED: Update local state immediately with proper sorting that preserves order
       setDecks(prevDecks => {
-        const updatedDecks = prevDecks.map(deck => ({
+        console.log('useDecks: Current deck order before activation:', prevDecks.map(d => ({ name: d.name, isActive: d.isActive })));
+        
+        // Find the deck to activate and all other decks
+        const deckToActivate = prevDecks.find(d => d.id === deckId);
+        const otherDecks = prevDecks.filter(d => d.id !== deckId);
+        
+        if (!deckToActivate) {
+          console.log('useDecks: Deck to activate not found');
+          return prevDecks;
+        }
+        
+        // Create the activated deck with updated timestamp
+        const activatedDeck = {
+          ...deckToActivate,
+          isActive: true,
+          updatedAt: new Date()
+        };
+        
+        // Deactivate all other decks but preserve their order
+        const deactivatedDecks = otherDecks.map(deck => ({
           ...deck,
-          isActive: deck.id === deckId,
-          updatedAt: deck.id === deckId ? new Date() : deck.updatedAt
+          isActive: false
         }));
         
-        // FIXED: Sort to move active deck to top while preserving order of remaining decks
-        const activeDeck = updatedDecks.find(d => d.isActive);
-        const inactiveDecks = updatedDecks.filter(d => !d.isActive);
+        // FIXED: Put active deck at top, then preserve the original order of remaining decks
+        // Sort the remaining decks by their original creation date to maintain order
+        deactivatedDecks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         
-        // Keep inactive decks in their original order (by creation date, newest first)
-        inactiveDecks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const finalOrder = [activatedDeck, ...deactivatedDecks];
         
-        const sortedDecks = activeDeck ? [activeDeck, ...inactiveDecks] : inactiveDecks;
-        
-        console.log('useDecks: Local state updated with new active deck order:', sortedDecks.map(d => ({ name: d.name, isActive: d.isActive })));
-        return sortedDecks;
+        console.log('useDecks: New deck order after activation:', finalOrder.map(d => ({ name: d.name, isActive: d.isActive })));
+        return finalOrder;
       });
       
       // Save to storage - update all decks' active status

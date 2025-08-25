@@ -82,10 +82,11 @@ export default function DeckDetailScreen() {
   const handleSetActive = async () => {
     if (deck) {
       try {
+        console.log('DeckDetailScreen: Setting deck as active:', deck.name);
         await setActiveDeck(deck.id);
-        console.log('Deck set as active:', deck.name);
+        console.log('DeckDetailScreen: Deck set as active successfully:', deck.name);
       } catch (error) {
-        console.log('Error setting active deck:', error);
+        console.log('DeckDetailScreen: Error setting active deck:', error);
       }
     }
   };
@@ -123,6 +124,22 @@ export default function DeckDetailScreen() {
     }
   };
 
+  const handleEditDeck = () => {
+    if (!deck) {
+      console.log('DeckDetailScreen: No deck found, cannot edit');
+      return;
+    }
+    
+    console.log('DeckDetailScreen: Navigating to edit deck screen for:', deck.name, 'with ID:', deck.id);
+    
+    try {
+      router.push(`/edit-deck/${deck.id}`);
+      console.log('DeckDetailScreen: Navigation to edit deck initiated');
+    } catch (error) {
+      console.log('DeckDetailScreen: Error navigating to edit deck:', error);
+    }
+  };
+
   if (!deck) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -156,7 +173,7 @@ export default function DeckDetailScreen() {
           </View>
           
           <TouchableOpacity
-            onPress={() => router.push(`/edit-deck/${deck.id}`)}
+            onPress={handleEditDeck}
             style={{ padding: 8 }}
           >
             <Icon name="create" size={24} color={colors.primary} />
