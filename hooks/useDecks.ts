@@ -144,13 +144,31 @@ export const useDecks = () => {
         console.log('useDecks: Color identity recalculated:', finalUpdates.colorIdentity);
       }
       
-      // Save to storage first
+      // FIXED: Update local state immediately for responsive UI
+      setDecks(prevDecks => {
+        const updatedDecks = prevDecks.map(deck => {
+          if (deck.id === deckId) {
+            const updatedDeck = { ...deck, ...finalUpdates, updatedAt: new Date() };
+            console.log('useDecks: Updated deck in local state:', updatedDeck.name);
+            return updatedDeck;
+          }
+          return deck;
+        });
+        
+        // Re-sort decks to maintain proper order
+        const sortedDecks = updatedDecks.sort((a, b) => {
+          if (a.isActive && !b.isActive) return -1;
+          if (!a.isActive && b.isActive) return 1;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+        
+        console.log('useDecks: Local state updated immediately for deck:', deckId);
+        return sortedDecks;
+      });
+      
+      // Save to storage in the background
       await deckStorage.updateDeck(deckId, finalUpdates);
       console.log('useDecks: Deck updated in storage');
-      
-      // Force reload from storage to ensure consistency
-      console.log('useDecks: Reloading decks from storage after updating deck');
-      await loadDecks();
     } catch (error) {
       console.log('useDecks: Error updating deck:', error);
       // Rollback by reloading from storage

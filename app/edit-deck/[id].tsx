@@ -75,14 +75,24 @@ export default function EditDeckScreen() {
   };
 
   const updateCardQuantity = (cardId: string, change: number) => {
+    console.log('EditDeckScreen: Updating card quantity for:', cardId, 'change:', change);
+    
     setCards(prev => {
       const updated = prev.map(card => {
         if (card.id === cardId) {
           const newQuantity = Math.max(0, card.quantity + change);
-          return newQuantity > 0 ? { ...card, quantity: newQuantity } : card;
+          console.log('EditDeckScreen: Card quantity changed from', card.quantity, 'to', newQuantity);
+          return { ...card, quantity: newQuantity };
         }
         return card;
-      }).filter(card => card.quantity > 0);
+      }).filter(card => {
+        // FIXED: Remove cards with quantity 0 to allow deletion
+        const shouldKeep = card.quantity > 0;
+        if (!shouldKeep) {
+          console.log('EditDeckScreen: Removing card with 0 quantity:', card.name);
+        }
+        return shouldKeep;
+      });
       
       // Keep cards sorted alphabetically
       return updated.sort((a, b) => a.name.localeCompare(b.name));
@@ -247,6 +257,31 @@ export default function EditDeckScreen() {
     }
   };
 
+  // FIXED: Add clearAllCards function with confirmation
+  const clearAllCards = () => {
+    console.log('EditDeckScreen: Clear all cards requested');
+    
+    Alert.alert(
+      'Clear All Cards',
+      'Are you sure you want to remove all cards from this deck? This action cannot be undone.',
+      [
+        { 
+          text: 'Cancel', 
+          style: 'cancel',
+          onPress: () => console.log('EditDeckScreen: Clear all cards cancelled')
+        },
+        { 
+          text: 'Clear All', 
+          style: 'destructive', 
+          onPress: () => {
+            console.log('EditDeckScreen: Clearing all cards');
+            setCards([]);
+          }
+        }
+      ]
+    );
+  };
+
   const handleSave = async () => {
     if (saving || !deck) return;
     
@@ -265,13 +300,14 @@ export default function EditDeckScreen() {
       console.log('EditDeckScreen: Saving deck updates:', deckName);
       console.log('EditDeckScreen: Cards count:', cards.length);
       
-      // Update the deck with new data, which will trigger color identity recalculation
+      // FIXED: Update the deck with new data, which will trigger immediate state update
       await updateDeck(deck.id, {
         name: deckName.trim(),
         cards, // Cards will be sorted and color identity recalculated in updateDeck
       });
       
-      console.log('EditDeckScreen: Deck updated successfully');
+      console.log('EditDeckScreen: Deck updated successfully, navigating back');
+      // FIXED: Navigate back to deck detail screen to see immediate changes
       router.back();
     } catch (error) {
       console.log('EditDeckScreen: Error saving deck:', error);
@@ -441,6 +477,18 @@ export default function EditDeckScreen() {
           <View style={[styles.card, { marginBottom: 20 }]}>
             <View style={styles.row}>
               <Text style={styles.subtitle}>{t.cards} ({sortedCards.length})</Text>
+              {/* FIXED: Add delete all cards button with red bin icon */}
+              <TouchableOpacity 
+                onPress={clearAllCards}
+                disabled={saving}
+                style={{ 
+                  opacity: saving ? 0.5 : 1,
+                  padding: 4,
+                  borderRadius: 4,
+                }}
+              >
+                <Icon name="trash" size={20} color={colors.error} />
+              </TouchableOpacity>
             </View>
             
             {sortedCards.map((card, index) => (

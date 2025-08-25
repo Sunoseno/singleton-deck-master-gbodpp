@@ -125,7 +125,7 @@ export default function DeckDetailScreen() {
   };
 
   const handleEditDeck = () => {
-    console.log('DeckDetailScreen: Edit button pressed!');
+    console.log('DeckDetailScreen: Edit button pressed for deck:', deck?.name);
     
     if (!deck) {
       console.log('DeckDetailScreen: No deck found, cannot edit');
@@ -134,25 +134,13 @@ export default function DeckDetailScreen() {
     }
     
     console.log('DeckDetailScreen: Navigating to edit deck screen for:', deck.name, 'with ID:', deck.id);
-    console.log('DeckDetailScreen: Router object:', router);
     
     try {
       const editPath = `/edit-deck/${deck.id}`;
       console.log('DeckDetailScreen: Attempting to navigate to:', editPath);
       
-      // Try multiple navigation methods
-      if (router.push) {
-        router.push(editPath);
-        console.log('DeckDetailScreen: Used router.push');
-      } else if (router.navigate) {
-        router.navigate(editPath);
-        console.log('DeckDetailScreen: Used router.navigate');
-      } else {
-        console.log('DeckDetailScreen: No navigation method available on router');
-        Alert.alert('Error', 'Navigation not available');
-        return;
-      }
-      
+      // FIXED: Use router.push with proper path
+      router.push(editPath);
       console.log('DeckDetailScreen: Navigation to edit deck initiated successfully');
     } catch (error) {
       console.log('DeckDetailScreen: Error navigating to edit deck:', error);
@@ -192,12 +180,15 @@ export default function DeckDetailScreen() {
             </View>
           </View>
           
+          {/* FIXED: Improved edit button styling and functionality */}
           <TouchableOpacity
             onPress={handleEditDeck}
             style={{ 
               padding: 8,
-              backgroundColor: 'rgba(0,0,0,0.1)', // Temporary background to see if button is there
-              borderRadius: 4
+              backgroundColor: colors.primary + '20',
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: colors.primary,
             }}
             activeOpacity={0.7}
           >
