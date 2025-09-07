@@ -252,11 +252,11 @@ export default function AddDeckScreen() {
       console.log('AddDeckScreen: Cards count:', cards.length);
       console.log('AddDeckScreen: Cards will be sorted alphabetically in useDecks hook');
       
-      // FIXED: Ensure the deck is added and state is updated immediately
+      // FIXED: New deck is not automatically activated
       const newDeck = await addDeck({
         name: deckName.trim(),
         cards, // Cards will be sorted in the addDeck function
-        isActive: true, // Make new deck active by default
+        isActive: false, // Do not make new deck active by default
       });
       
       console.log('AddDeckScreen: Deck saved successfully:', newDeck.id);

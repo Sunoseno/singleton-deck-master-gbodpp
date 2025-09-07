@@ -76,7 +76,7 @@ export const useDecks = () => {
         ...deck, 
         cards: sortedCards,
         colorIdentity, 
-        isActive: deck.isActive !== undefined ? deck.isActive : true 
+        isActive: deck.isActive !== undefined ? deck.isActive : false // FIXED: Default to false instead of true
       };
       
       // If this deck should be active, deactivate all other decks first
